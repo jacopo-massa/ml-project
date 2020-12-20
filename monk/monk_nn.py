@@ -1,54 +1,75 @@
 import matplotlib.pyplot as plt
 import numpy as np
-
-
 from numpy import loadtxt
-from tensorflow.keras.utils import to_categorical
-from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense
-from tensorflow.keras.optimizers import SGD
 from tensorflow.keras.metrics import BinaryAccuracy
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.optimizers import SGD
+from tensorflow.keras.regularizers import l2
+from tensorflow.keras.utils import to_categorical
 
 
-# One Hot Encoding through Keras
+def scaled(data):
+
+    scaled_data = []
+    for i in range(1, 7):
+        col = data[:, i]
+
+        data[:, i] = np.interp(col, (col.min(), col.max()), (0, len(np.unique(col)) - 1))
+
+        col_cat = to_categorical(data[:, i])
+
+        scaled_data = np.concatenate((scaled_data, col_cat), axis=1) if i != 1 else col_cat
+
+    return scaled_data
+
+
+def flattened(data):
+    flat = []
+    for d in data:
+        flat.append(np.ravel(d))
+
+    return np.array([np.array(f) for f in flat])
+
+
 def get_one_hot_encoded(monk_number):
-    # range up to 8 because there's a first blank space to be skipped
 
     train_file = "./dataset/monks-{}.train".format(monk_number)
     test_file = "./dataset/monks-{}.test".format(monk_number)
 
+    # range up to 8 because there's a first blank space to be skipped
     train = loadtxt(train_file, delimiter=' ', usecols=range(1, 8))
     test = loadtxt(test_file, delimiter=' ', usecols=range(1, 8))
 
+    # get target values
+    y = train[:, 0]
+    y_test = test[:, 0]
+
+    # scale other values per column between 0 and # unique values for that column
+    x = scaled(train)
+    x_test = scaled(test)
+
+    """# one-hot encode input
     x = to_categorical(train[:, 1:7])
     x_test = to_categorical(test[:, 1:7])
 
-    flat_x = []
-    for i in range(len(x)):
-        flat_x.append(np.ravel(x[i]))
-
-    x = np.array([np.array(xi) for xi in flat_x])
-
-    flat_x_test = []
-    for i in range(len(x_test)):
-        flat_x_test.append(np.ravel(x_test[i]))
-
-    x_test = np.array([np.array(xi) for xi in flat_x_test])
-
-    y = train[:, 0]
-    y_test = test[:, 0]
+    # flatten the input
+    x = flattened(x)
+    x_test = flattened(x_test)"""
 
     return x, y, x_test, y_test
 
 
-def monk_solver(monk_number, n_unit, eta, alpha, epochs, batch_size=None):
+def monk_solver(monk_number, n_unit, eta, alpha, epochs, lmb=None, batch_size=None):
 
     # get data
     x, y, x_test, y_test = get_one_hot_encoded(monk_number)
 
     # create the model
+    regularizer = l2(lmb) if lmb else None
+
     model = Sequential([
-        Dense(n_unit, activation='tanh', input_dim=30),
+        Dense(n_unit, activation='tanh', kernel_regularizer=regularizer, bias_regularizer=regularizer, input_dim=17),
         Dense(1, activation='sigmoid')
     ])
 
@@ -57,9 +78,18 @@ def monk_solver(monk_number, n_unit, eta, alpha, epochs, batch_size=None):
 
     res = model.fit(x, y, epochs=epochs, batch_size=batch_size, validation_data=(x_test, y_test), verbose=2)
 
+    # plot results for training set
     plt.plot(res.history['loss'])
+    plt.plot(res.history['val_loss'])
+    plt.legend(['Loss TR', 'Loss TS'], loc='center right')
+    plt.title(f'MONK {monk_number} (eta = {eta}, alpha = {alpha}) - Loss')
+    plt.show()
+
+    # plot results for "test" (validation) set
     plt.plot(res.history['accuracy'])
-    plt.legend(['Loss', 'Accuracy'])
+    plt.plot(res.history['val_accuracy'])
+    plt.legend(['Accuracy TR', 'Accuracy TS'], loc='center right')
+    plt.title(f'MONK {monk_number} (eta = {eta}, alpha = {alpha}) - Accuracy')
     plt.show()
 
     # "don't specify batch_size if your data is in the form of datasets, generators,
@@ -73,7 +103,8 @@ def monk_solver(monk_number, n_unit, eta, alpha, epochs, batch_size=None):
     # plateau e lo guardi tramite plot (x -> #epoche, y -> accuracy) [random value tipo 50]
 
 
-monk_solver(monk_number=1, n_unit=4, eta=0.25, alpha=0.85, epochs=100)
+if __name__ == '__main__':
 
-# get_one_hot_encoded(1)
-
+    # monk_solver(monk_number=2, n_unit=4, eta=0.2, alpha=0.8, epochs=200)
+    monk_solver(monk_number=1, n_unit=4, eta=0.25, alpha=0.85, epochs=200)
+    # get_one_hot_encoded(1)

@@ -69,7 +69,7 @@ def monk_solver(monk_number, n_unit, eta, alpha, epochs, lmb=None, batch_size=No
     regularizer = l2(lmb) if lmb else None
 
     model = Sequential([
-        Dense(n_unit, activation='tanh', kernel_regularizer=regularizer, bias_regularizer=regularizer, input_dim=17),
+        Dense(n_unit, activation='tanh', kernel_regularizer=regularizer, input_dim=17),
         Dense(1, activation='sigmoid')
     ])
 
@@ -82,14 +82,14 @@ def monk_solver(monk_number, n_unit, eta, alpha, epochs, lmb=None, batch_size=No
     plt.plot(res.history['loss'])
     plt.plot(res.history['val_loss'])
     plt.legend(['Loss TR', 'Loss TS'], loc='center right')
-    plt.title(f'MONK {monk_number} (eta = {eta}, alpha = {alpha}) - Loss')
+    plt.title(f'MONK {monk_number} (eta = {eta}, alpha = {alpha}, lambda = {lmb}) - Loss')
     plt.show()
 
     # plot results for "test" (validation) set
     plt.plot(res.history['accuracy'])
     plt.plot(res.history['val_accuracy'])
     plt.legend(['Accuracy TR', 'Accuracy TS'], loc='center right')
-    plt.title(f'MONK {monk_number} (eta = {eta}, alpha = {alpha}) - Accuracy')
+    plt.title(f'MONK {monk_number} (eta = {eta}, alpha = {alpha}, lambda = {lmb}) - Accuracy')
     plt.show()
 
     # "don't specify batch_size if your data is in the form of datasets, generators,
@@ -105,6 +105,7 @@ def monk_solver(monk_number, n_unit, eta, alpha, epochs, lmb=None, batch_size=No
 
 if __name__ == '__main__':
 
-    # monk_solver(monk_number=2, n_unit=4, eta=0.2, alpha=0.8, epochs=200)
-    monk_solver(monk_number=1, n_unit=4, eta=0.25, alpha=0.85, epochs=200)
-    # get_one_hot_encoded(1)
+    monk_solver(monk_number=1, n_unit=4, eta=0.2, alpha=0.85, epochs=150)
+    # monk_solver(monk_number=2, n_unit=4, eta=0.25, alpha=0.85, epochs=150)
+    # monk_solver(monk_number=3, n_unit=4, eta=0.15, alpha=0.5, epochs=100)
+    # monk_solver(monk_number=3, n_unit=4, eta=0.1, alpha=0.45, epochs=170, lmb=0.001)

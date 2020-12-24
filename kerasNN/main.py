@@ -42,7 +42,7 @@ def model_selection(x, y, epochs=200, batch_size=32):
     np.random.seed(seed)
 
     # create model
-    model = KerasRegressor(build_fn=create_model, epochs=200, batch_size=64, verbose=0)
+    model = KerasRegressor(build_fn=create_model, epochs=epochs, batch_size=batch_size, verbose=0)
 
     # define the grid search parameters
     eta = np.arange(start=0.0005, stop=0.0011, step=0.0002)

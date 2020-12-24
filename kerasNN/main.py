@@ -10,6 +10,7 @@ from tensorflow.keras.optimizers import SGD
 from tensorflow.keras.regularizers import l2
 from tensorflow.keras.wrappers.scikit_learn import KerasRegressor
 from sklearn.model_selection import GridSearchCV
+from sklearn.metrics import make_scorer
 
 from utils import *
 
@@ -17,15 +18,7 @@ from utils import *
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 
-def rmse(y_true, y_pred):
-    return K.sqrt(K.mean(K.square(y_pred - y_true), axis=-1))
-
-
-def euclidean_distance_loss(y_true, y_pred):
-    return K.sqrt(K.sum(K.square(y_pred - y_true), axis=-1))
-
-
-def create_model(layers=3, neurons=25, init_mode='glorot_normal', activation='tanh', lmb=0.0005, eta=0.001, alpha=0.7):
+def create_model(layers=3, neurons=25, init_mode='glorot_normal', activation='relu', lmb=0.0005, eta=0.001, alpha=0.7):
     model = Sequential()
 
     for i in range(layers):
@@ -37,12 +30,12 @@ def create_model(layers=3, neurons=25, init_mode='glorot_normal', activation='ta
     # set Stochastic Gradient Descent optimizer
     optimizer = SGD(learning_rate=eta, momentum=alpha)
 
-    model.compile(optimizer=optimizer, loss=rmse)
+    model.compile(optimizer=optimizer, loss=euclidean_distance_loss)
 
     return model
 
 
-def model_selection(x, y):
+def model_selection(x, y, epochs=200, batch_size=32):
 
     # fix random seed for reproducibility
     seed = 27
@@ -73,40 +66,43 @@ def model_selection(x, y):
     print("Starting Grid Search...")
 
     grid = GridSearchCV(estimator=model, param_grid=param_grid, n_jobs=-1, cv=10,
-                        return_train_score=True, scoring='neg_root_mean_squared_error', verbose=1, refit=True)
+                        return_train_score=True, scoring=scorer, verbose=2, refit=True)
 
     grid_result = grid.fit(x, y)
 
     print(f"Best: {grid.best_score_} using {grid_result.best_params_}")
     hist = grid_result.best_estimator_.model.history.history
-    plot_learning_curve(hist)
+
+    best_params = grid_result.best_params_
+    best_params['epochs'] = epochs
+    best_params['batch_size'] = batch_size
+    plot_learning_curve(hist, **best_params)
 
     end_time = time.time() - start_time
     print(f"Ended Grid Search. ({end_time})")
 
-    return grid_result.best_params_
+    return grid, grid_result
 
 
 def predict(model, x_ts, x_its, y_its):
 
     y_ipred = model.predict(x_its)
-    iloss = euclidean_distance_loss(y_its, y_ipred)
+    iloss = rmse(y_its, y_ipred)
 
     y_pred = model.predict(x_ts)
 
-    return y_pred, iloss
+    return y_pred, K.eval(iloss)
 
 
 def plot_learning_curve(history, start_epoch=1, **kwargs):
 
     lgd = ['Loss TR']
     plt.plot(range(start_epoch, kwargs['epochs']), history['loss'][start_epoch:])
-
     if "val_loss" in history:
-        plt.plot(history['val_loss'])
+        plt.plot(range(start_epoch, kwargs['epochs']), history['val_loss'][start_epoch:])
         lgd.append('Loss VL')
     plt.legend(lgd)
-    plt.title(f'Learning Curve Keras \n {kwargs}')
+    plt.title(f'Keras Learning Curve \n {kwargs}')
 
     name = ""
     for k, v in kwargs.items():
@@ -120,21 +116,20 @@ def plot_learning_curve(history, start_epoch=1, **kwargs):
 
 def cross_validation(x, y, eta, alpha, lmb, n_splits=10, epochs=200, batch_size=64):
 
-    model_cv = create_model(eta=eta, alpha=alpha, lmb=lmb)
     kfold = KFold(n_splits=n_splits, random_state=None, shuffle=False)
+    model_cv = create_model(eta=eta, alpha=alpha, lmb=lmb)
 
     cv_loss = []
     lgd = []
     fold_idx = 0
-    for tr_idx, vl_idx in kfold.split(x):
+    for tr_idx, vl_idx in kfold.split(x, y):
         print(f"Starting fold {fold_idx}")
         res_cv = model_cv.fit(x[tr_idx], y[tr_idx], epochs=epochs, batch_size=batch_size,
                               validation_data=(x[vl_idx], y[vl_idx]), verbose=0)
 
         loss_tr = res_cv.history['loss']
         loss_vl = res_cv.history['val_loss']
-        cv_loss.append(loss_tr[-1])
-        cv_loss.append(loss_vl[-1])
+        cv_loss.append([loss_tr[-1], loss_vl[-1]])
 
         plt.plot(loss_tr)
         plt.plot(loss_vl)
@@ -146,7 +141,7 @@ def cross_validation(x, y, eta, alpha, lmb, n_splits=10, epochs=200, batch_size=
         print(f"Ended fold {fold_idx}, with {loss_tr[-1]} - {loss_vl[-1]}")
 
     # plot and save cv results
-    param = dict(alpha=alpha, eta=eta, lmb=lmb, epochs=epochs, batch_size=batch_size)
+    param = dict(eta=eta, alpha=alpha, lmb=lmb, epochs=epochs, batch_size=batch_size)
 
     plt.legend(lgd)
     plt.title(f"Keras Cross Validation \n {param}")
@@ -164,21 +159,34 @@ def cross_validation(x, y, eta, alpha, lmb, n_splits=10, epochs=200, batch_size=
     res_final = model_cv.fit(x, y, epochs=epochs, batch_size=batch_size, verbose=0)
     plot_learning_curve(res_final.history, **param)
 
+    # mean of loss on TR and VL
+    return model_cv, list(np.mean(cv_loss, axis=0))
+
 
 if __name__ == '__main__':
     # read training set
     x, y, x_t, y_t = read_tr(its=True)
 
-    """# eta = 0.0009, alpha = 0.8, lmb = 0.0009, epochs = 200, batch_size = 64
+    params = dict(eta=0.001, alpha=0.84, lmb=0.0006, epochs=170, batch_size=64)
 
     model = create_model(eta=params['eta'], alpha=params['alpha'], lmb=params['lmb'])
 
-    res = model.fit(x, y, epochs=params['epochs'], batch_size=params['batch_size'], verbose=2)
+    x_tr, x_vl, y_tr, y_vl = train_test_split(x, y, test_size=0.3, random_state=27)
 
-    plot_learning_curve(res.history, 30, **params)"""
+    res = model.fit(x, y, validation_data=(x_vl, y_vl), epochs=params['epochs'], batch_size=params['batch_size'],
+                    verbose=2)
+    plot_learning_curve(res.history, start_epoch=1, **params)
 
-    params = dict(eta=0.01, alpha=0.55, lmb=0.0004, epochs=200, batch_size=64)
-    cross_validation(x, y, **params, n_splits=4)
+    y_pred, iloss = predict(model=model, x_ts=read_ts(), x_its=x_t, y_its=y_t)
+
+    print("TR Loss: ", res.history['loss'][-1])
+    print("VL Loss: ", res.history['val_loss'][-1])
+    print("TS Loss: ", np.mean(iloss))
+
+
+
+
+
 
 
 

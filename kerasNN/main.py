@@ -1,16 +1,12 @@
 import time
-import numpy as np
-import os
 import matplotlib.pyplot as plt
 
-import tensorflow.keras.backend as K
 from tensorflow.keras.layers import Dense
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.optimizers import SGD
 from tensorflow.keras.regularizers import l2
 from tensorflow.keras.wrappers.scikit_learn import KerasRegressor
-from sklearn.model_selection import GridSearchCV
-from sklearn.metrics import make_scorer
+from sklearn.model_selection import GridSearchCV, KFold
 
 from utils import *
 
@@ -18,11 +14,11 @@ from utils import *
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 
-def create_model(layers=3, neurons=25, init_mode='glorot_normal', activation='relu', lmb=0.0005, eta=0.001, alpha=0.7):
+def create_model(layers=3, n_units=30, init_mode='glorot_normal', activation='tanh', lmb=0.0005, eta=0.001, alpha=0.7):
     model = Sequential()
 
     for i in range(layers):
-        model.add(Dense(neurons, kernel_initializer=init_mode, activation=activation, kernel_regularizer=l2(lmb)))
+        model.add(Dense(n_units, kernel_initializer=init_mode, activation=activation, kernel_regularizer=l2(lmb)))
 
     # add output layer
     model.add(Dense(2, activation='linear', kernel_initializer=init_mode))

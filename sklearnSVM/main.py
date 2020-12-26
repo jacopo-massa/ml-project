@@ -1,10 +1,9 @@
-import numpy as np
+import matplotlib.pyplot as plt
 from utils import *
 
 from sklearn.model_selection import GridSearchCV, learning_curve
 from sklearn.svm import SVR
 from sklearn.multioutput import MultiOutputRegressor
-from sklearn.metrics import make_scorer
 
 # tensorflow INFO, WARNING and ERROR are not printed
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
@@ -34,7 +33,7 @@ def model_selection(x, y):
 
     print(f"Best: {grid.best_score_} using {grid_result.best_params_}")
 
-    return grid, grid_result
+    return grid.best_estimator_, grid_result
 
 
 def predict(model, x_ts, x_its, y_its):
@@ -79,17 +78,17 @@ if __name__ == '__main__':
     # read training set
     x, y, x_its, y_its = read_tr(its=True)
 
-    final_model, res = model_selection(x, y)
+    """final_model, res = model_selection(x, y)
 
     print(res.cv_results_['mean_test_score'][res.best_index_])
     print(res.cv_results_['mean_train_score'][res.best_index_])
 
     _, loss_its = predict(model=final_model, x_ts=read_ts(), x_its=x_its, y_its=y_its)
 
-    plot_learning_curve(final_model, x, y)
-    """svr = SVR(kernel='rbf', gamma=0.08, C=100, epsilon=0.1)
+    plot_learning_curve(final_model, x, y)"""
+    svr = SVR(kernel='rbf', gamma=0.09, C=10, epsilon=0.4)
     mor = MultiOutputRegressor(svr)
 
     mor.fit(x, y)
 
-    a, b = predict(model=mor, x_ts=read_ts(), x_its=x_its, y_its=y_its)"""
+    a, b = predict(model=mor, x_ts=read_ts(), x_its=x_its, y_its=y_its)

@@ -1,11 +1,8 @@
 import os
-import matplotlib.pyplot as plt
-
 import numpy as np
 import tensorflow.keras.backend as K
-import pandas as pd
 from numpy import loadtxt
-from sklearn.model_selection import train_test_split, KFold
+from sklearn.model_selection import train_test_split
 from sklearn.metrics import make_scorer
 
 # PyTorch, TensorFlow.keras, SciKit

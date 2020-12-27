@@ -12,6 +12,9 @@ from sklearn.metrics import make_scorer
 
 # Un'altra rete per il MONK <- semplice, con Keras
 
+# tensorflow INFO, WARNING and ERROR are not printed
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 

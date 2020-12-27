@@ -1,6 +1,7 @@
 import torch
 import torch.nn.functional as F
 import matplotlib.pyplot as plt
+import multiprocessing as mp
 
 from utils import *
 from torch import FloatTensor, tanh
@@ -10,6 +11,9 @@ from torch.nn.init import xavier_uniform
 from torch.utils.data import DataLoader, TensorDataset
 from torch.utils.data.dataset import random_split
 from sklearn.model_selection import KFold
+
+ms_result = []
+cv_result = []
 
 
 class Net(Module):
@@ -147,11 +151,13 @@ def fit(x, y, model, optimizer, loss_fn=mean_euclidean_error, epochs=200, batch_
     return losses, val_losses
 
 
-def cross_validation(x, y, n_splits=10, epochs=200, batch_size=32):
+def log_cv_result(result):
+    loss_tr, loss_vl = result
+    cv_result.append([loss_tr[-1], loss_vl[-1]])
 
-    eta = 0.001
-    alpha = 0.9
-    lmb = 0.0006
+
+def cross_validation(x, y, n_splits=2, epochs=200, batch_size=32, alpha=0.9, eta=0.001, lmb=0.0005):
+
     kfold = KFold(n_splits=n_splits, random_state=None, shuffle=False)
     cv_loss = []
     fold_idx = 1
@@ -161,27 +167,87 @@ def cross_validation(x, y, n_splits=10, epochs=200, batch_size=32):
         model = Net()
         optimizer = SGD(model.parameters(), lr=eta, momentum=alpha, weight_decay=lmb)
 
-        loss_tr, loss_vl = fit(x[tr_idx], y[tr_idx], model=model, optimizer=optimizer, epochs=epochs,
+        loss_tr, loss_vl = fit(x[tr_idx], y[tr_idx], model=model, optimizer=optimizer,    epochs=epochs,
                                batch_size=batch_size, val_data=(x[vl_idx], y[vl_idx]))
 
-        cv_loss.append({f"Fold {fold_idx}": [loss_tr[-1], loss_vl[-1]]})
+        cv_loss.append([loss_tr[-1], loss_vl[-1]])
         print(f"Ended fold {fold_idx}, with {loss_tr[-1]} - {loss_vl[-1]}")
         fold_idx += 1
 
-    return cv_loss
+    params = dict(eta=eta, alpha=alpha, lmb=lmb, epochs=epochs, batch_size=batch_size)
+    return params, cv_loss
+
+
+def log_ms_result(result):
+    # cv_res, params = result
+    ms_result.append(result)
+
+
+def model_selection(x, y, epochs=200, batch_size=32):
+
+    pool = mp.Pool(processes=mp.cpu_count())
+
+    # batch_size = [32, 64, 128]
+    # n_units = [20, 25, 30]
+    eta = np.arange(start=0.0001, stop=0.1, step=0.0002)
+    alpha = np.arange(start=0.4, stop=1, step=0.2)
+    lmb = np.arange(start=0.0005, stop=0.001, step=0.0002)
+
+    for e in eta:
+        for a in alpha:
+            for l in lmb:
+                pool.apply_async(cross_validation, (x, y), dict(eta=e, alpha=a, lmb=l), callback=log_ms_result)
+
+    pool.close()
+    pool.join()
+
+    # min_vl_loss = np.amin([np.mean(r, axis=0) for _, (_, r) in enumerate(ms_result)], axis=0)[1]
+
+    min_loss = None
+    min_idx = 0
+    for idx, (d, r) in enumerate(ms_result):
+        mean = (np.mean(r, axis=0))[1]
+        if min_loss is None or min_loss > mean:
+            min_loss = mean
+            min_idx = idx
+
+    best_params = ms_result[min_idx][0]
+
+    print(f"Best score {min_loss} with {best_params}")
+    return best_params
+
+
+def predict(model, x_ts, x_its, y_its):
+
+    x_ts = torch.from_numpy(x_ts).float()
+    x_its = torch.from_numpy(x_its).float()
+    y_its = torch.from_numpy(y_its).float()
+
+    y_ipred = model(x_its)
+    iloss = mean_euclidean_error(y_its, y_ipred)
+
+    y_pred = model(x_ts)
+
+    return y_pred.detach().numpy(), iloss.item()
 
 
 if __name__ == '__main__':
     # read training set
-    x, y, x_t, y_t = read_tr(its=True)
+    x, y, x_its, y_its = read_tr(its=True)
 
-    """tr_losses, val_losses = fit(x, y, model=model, optimizer=optimizer, batch_size=batch_size)
+    params = model_selection(x, y)
 
-    print(len(tr_losses), len(val_losses))
-    print("TR Loss: ", np.mean(tr_losses))
-    print("VL Loss: ", np.mean(val_losses))
+    model = Net()
+    optimizer = SGD(model.parameters(), lr=params['eta'], momentum=params['alpha'], weight_decay=params['lmb'])
 
-    plot_learning_curve(tr_losses, val_losses)"""
+    tr_losses, val_losses = fit(x, y, model=model, optimizer=optimizer,
+                                batch_size=params['batch_size'], epochs=params['epochs'])
 
-    cross_validation(x, y)
+    y_pred, ts_losses = predict(model=model, x_ts=read_ts(), x_its=x_its, y_its=y_its)
+
+    print("TR Loss: ", tr_losses[-1])
+    print("VL Loss: ", val_losses[-1])
+    print("TS Loss: ", np.mean(ts_losses))
+
+
 

@@ -5,9 +5,6 @@ from sklearn.model_selection import GridSearchCV, learning_curve
 from sklearn.svm import SVR
 from sklearn.multioutput import MultiOutputRegressor
 
-# tensorflow INFO, WARNING and ERROR are not printed
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
-
 
 def model_selection(x, y):
     # fix random seed for reproducibility
@@ -41,8 +38,6 @@ def predict(model, x_ts, x_its, y_its):
     iloss = K.eval(euclidean_distance_loss(y_its, y_ipred))
 
     y_pred = model.predict(x_ts)
-
-    print(np.mean(iloss))
 
     return y_pred, iloss
 
@@ -78,17 +73,8 @@ if __name__ == '__main__':
     # read training set
     x, y, x_its, y_its = read_tr(its=True)
 
-    """final_model, res = model_selection(x, y)
+    model, _ = model_selection(x, y)
 
-    print(res.cv_results_['mean_test_score'][res.best_index_])
-    print(res.cv_results_['mean_train_score'][res.best_index_])
+    y_pred, ts_losses = predict(model=model, x_ts=read_ts(), x_its=x_its, y_its=y_its)
 
-    _, loss_its = predict(model=final_model, x_ts=read_ts(), x_its=x_its, y_its=y_its)
-
-    plot_learning_curve(final_model, x, y)"""
-    svr = SVR(kernel='rbf', gamma=0.09, C=10, epsilon=0.4)
-    mor = MultiOutputRegressor(svr)
-
-    mor.fit(x, y)
-
-    a, b = predict(model=mor, x_ts=read_ts(), x_its=x_its, y_its=y_its)
+    print("TS Loss: ", np.mean(ts_losses))

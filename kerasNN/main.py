@@ -10,9 +10,6 @@ from sklearn.model_selection import GridSearchCV, KFold
 
 from utils import *
 
-# tensorflow INFO, WARNING and ERROR are not printed
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
-
 
 def create_model(layers=3, n_units=30, init_mode='glorot_normal', activation='tanh', lmb=0.0005, eta=0.001, alpha=0.7):
     model = Sequential()
@@ -50,11 +47,8 @@ def model_selection(x, y, epochs=200, batch_size=32):
     lmb = np.arange(start=0.0005, stop=0.001, step=0.0002)
     lmb = [float(round(i, 4)) for i in list(lmb)]
 
-    batch_size = [8, 16, 32, 64, 128]
-    init_mode = ['uniform', 'lecun_uniform', 'normal', 'zero', 'glorot_normal', 'glorot_uniform', 'he_normal',
-                 'he_uniform']
-    activation = ['softmax', 'softplus', 'softsign', 'relu', 'tanh', 'sigmoid', 'hard_sigmoid', 'linear']
-    neurons = [1, 5, 10, 15, 20, 25, 30]
+    batch_size = [16, 32, 64, 128]
+    neurons = [15, 20, 25, 30]
 
     param_grid = dict(eta=eta, alpha=alpha, lmb=lmb)
 
@@ -77,7 +71,9 @@ def model_selection(x, y, epochs=200, batch_size=32):
     end_time = time.time() - start_time
     print(f"Ended Grid Search. ({end_time})")
 
-    return grid, grid_result
+    print(f"Best: {grid.best_score_} using {grid_result.best_params_}")
+
+    return grid.best_estimator_, grid_result
 
 
 def predict(model, x_ts, x_its, y_its):
@@ -161,23 +157,13 @@ def cross_validation(x, y, eta, alpha, lmb, n_splits=10, epochs=200, batch_size=
 
 if __name__ == '__main__':
     # read training set
-    x, y, x_t, y_t = read_tr(its=True)
+    x, y, x_its, y_its = read_tr(its=True)
 
-    params = dict(eta=0.001, alpha=0.84, lmb=0.0006, epochs=170, batch_size=64)
+    model, _ = model_selection(x, y)
 
-    model = create_model(eta=params['eta'], alpha=params['alpha'], lmb=params['lmb'])
+    y_pred, ts_losses = predict(model=model, x_ts=read_ts(), x_its=x_its, y_its=y_its)
 
-    x_tr, x_vl, y_tr, y_vl = train_test_split(x, y, test_size=0.3, random_state=27)
-
-    res = model.fit(x, y, validation_data=(x_vl, y_vl), epochs=params['epochs'], batch_size=params['batch_size'],
-                    verbose=2)
-    plot_learning_curve(res.history, start_epoch=1, **params)
-
-    y_pred, iloss = predict(model=model, x_ts=read_ts(), x_its=x_t, y_its=y_t)
-
-    print("TR Loss: ", res.history['loss'][-1])
-    print("VL Loss: ", res.history['val_loss'][-1])
-    print("TS Loss: ", np.mean(iloss))
+    print("TS Loss: ", np.mean(ts_losses))
 
 
 

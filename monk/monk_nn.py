@@ -7,6 +7,7 @@ from tensorflow.keras.models import Sequential
 from tensorflow.keras.optimizers import SGD
 from tensorflow.keras.regularizers import l2
 from tensorflow.keras.utils import to_categorical
+from utils import *
 
 
 def scaled(data):
@@ -105,7 +106,7 @@ def monk_solver(monk_number, n_unit, eta, alpha, epochs, lmb=None, batch_size=No
 
 if __name__ == '__main__':
 
-    monk_solver(monk_number=1, n_unit=4, eta=0.2, alpha=0.85, epochs=150)
-    # monk_solver(monk_number=2, n_unit=4, eta=0.25, alpha=0.85, epochs=150)
-    # monk_solver(monk_number=3, n_unit=4, eta=0.15, alpha=0.5, epochs=100)
-    # monk_solver(monk_number=3, n_unit=4, eta=0.1, alpha=0.45, epochs=170, lmb=0.001)
+    monk_solver(monk_number=1, n_unit=4, eta=0.25, alpha=0.85, epochs=90, batch_size=25)
+    #monk_solver(monk_number=2, n_unit=4, eta=0.25, alpha=0.85, epochs=150)
+    #monk_solver(monk_number=3, n_unit=4, eta=0.15, alpha=0.5, epochs=100)
+    #monk_solver(monk_number=3, n_unit=4, eta=0.1, alpha=0.45, epochs=170, lmb=0.001)

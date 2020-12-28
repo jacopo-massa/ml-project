@@ -37,7 +37,7 @@ def model_selection(x, y, epochs=200, batch_size=32):
     # create model
     model = KerasRegressor(build_fn=create_model, epochs=epochs, batch_size=batch_size, verbose=0)
 
-    # define the grid search parameters
+    """# define the grid search parameters
     eta = np.arange(start=0.0005, stop=0.0011, step=0.0002)
     eta = [float(round(i, 4)) for i in list(eta)]
 
@@ -48,32 +48,33 @@ def model_selection(x, y, epochs=200, batch_size=32):
     lmb = [float(round(i, 4)) for i in list(lmb)]
 
     batch_size = [16, 32, 64, 128]
-    neurons = [15, 20, 25, 30]
+    neurons = [15, 20, 25, 30]"""
+
+
+    eta = [0.1, 0.01]
+    alpha = [0.5, 0.6]
+    lmb = [0.0005]
 
     param_grid = dict(eta=eta, alpha=alpha, lmb=lmb)
 
     start_time = time.time()
     print("Starting Grid Search...")
 
-    grid = GridSearchCV(estimator=model, param_grid=param_grid, n_jobs=-1, cv=10,
-                        return_train_score=True, scoring=scorer, verbose=2, refit=True)
+    grid = GridSearchCV(estimator=model, param_grid=param_grid, n_jobs=-1, cv=3,
+                        return_train_score=True, scoring=scorer, verbose=2)
 
     grid_result = grid.fit(x, y)
-
-    print(f"Best: {grid.best_score_} using {grid_result.best_params_}")
-    hist = grid_result.best_estimator_.model.history.history
 
     best_params = grid_result.best_params_
     best_params['epochs'] = epochs
     best_params['batch_size'] = batch_size
-    plot_learning_curve(hist, **best_params)
 
     end_time = time.time() - start_time
     print(f"Ended Grid Search. ({end_time})")
 
-    print(f"Best: {grid.best_score_} using {grid_result.best_params_}")
+    print(f"Best: {abs(grid.best_score_)} using {grid_result.best_params_}")
 
-    return grid.best_estimator_, grid_result
+    return best_params
 
 
 def predict(model, x_ts, x_its, y_its):
@@ -159,11 +160,20 @@ if __name__ == '__main__':
     # read training set
     x, y, x_its, y_its = read_tr(its=True)
 
-    model, _ = model_selection(x, y)
+    params = model_selection(x, y)
+
+    model = create_model(eta=params['eta'], alpha=params['alpha'], lmb=params['lmb'])
+
+    res = model.fit(x, y, validation_split=0.3, epochs=params['epochs'], batch_size=params['batch_size'], verbose=2)
+    tr_losses = res.history['loss']
+    val_losses = res.history['val_loss']
 
     y_pred, ts_losses = predict(model=model, x_ts=read_ts(), x_its=x_its, y_its=y_its)
 
+    print("TR Loss: ", tr_losses[-1])
+    print("VL Loss: ", val_losses[-1])
     print("TS Loss: ", np.mean(ts_losses))
+
 
 
 

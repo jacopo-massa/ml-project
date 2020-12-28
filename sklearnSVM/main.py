@@ -19,23 +19,24 @@ def model_selection(x, y):
     epsilon = [float(round(i, 4)) for i in list(epsilon)]
 
     param_grid = [{'estimator__kernel': ['rbf'],
-                   'estimator__gamma': [1e-1, 1e-2, 1e-3, 1e-4, 'auto', 'scale'],
-                   'estimator__C': [1, 10, 100, 1000],
-                   'estimator__epsilon': epsilon}]
+                   #'estimator__gamma': [1e-1, 1e-2, 1e-3, 1e-4, 'auto', 'scale'],
+                   'estimator__gamma': ['auto', 'scale'],
+                   'estimator__C': [1, 10],
+                   'estimator__epsilon': [0.1, 0.2]}]
 
     grid = GridSearchCV(estimator=model, param_grid=param_grid, n_jobs=-1, cv=10,
-                        return_train_score=True, scoring=scorer, verbose=2, refit=True)
+                        return_train_score=True, scoring=scorer, verbose=2)
 
     grid_result = grid.fit(x, y)
 
-    print(f"Best: {grid.best_score_} using {grid_result.best_params_}")
+    print(f"Best: {abs(grid.best_score_)} using {grid_result.best_params_}")
 
-    return grid.best_estimator_, grid_result
+    return grid.best_params_
 
 
 def predict(model, x_ts, x_its, y_its):
-    y_ipred = model.predict(x_its)
-    iloss = K.eval(euclidean_distance_loss(y_its, y_ipred))
+
+    iloss = K.eval(euclidean_distance_loss(y_its, model.predict(x_its)))
 
     y_pred = model.predict(x_ts)
 
@@ -46,7 +47,8 @@ def plot_learning_curve(model, x, y):
 
     # dictify model's parameters
     p = model.get_params()
-    params = dict(C=p['estimator__C'], gamma=p['estimator__gamma'], eps=p['estimator__epsilon'])
+    params = dict(kernel=p['estimator__kernel'], C=p['estimator__C'],
+                  gamma=p['estimator__gamma'], eps=p['estimator__epsilon'])
 
     train_sizes, train_scores_svr, test_scores_svr = \
         learning_curve(model, x, y, train_sizes=np.linspace(0.1, 1, 10),
@@ -73,8 +75,25 @@ if __name__ == '__main__':
     # read training set
     x, y, x_its, y_its = read_tr(its=True)
 
-    model, _ = model_selection(x, y)
+    params = model_selection(x, y)
+
+    # create model with best params found by GridSearch
+    svr = SVR(kernel=params['estimator__kernel'], C=params['estimator__C'],
+              gamma=params['estimator__gamma'], epsilon=params['estimator__epsilon'])
+
+    model = MultiOutputRegressor(svr)
+
+    # fit model on the entire TR
+    x_tr, x_vl, y_tr, y_vl = train_test_split(x, y, test_size=0.3)
+    model.fit(x_tr, y_tr)
+
+    tr_losses = euclidean_distance_loss(y_tr, model.predict(x_tr))
+    val_losses = euclidean_distance_loss(y_vl, model.predict(x_vl))
 
     y_pred, ts_losses = predict(model=model, x_ts=read_ts(), x_its=x_its, y_its=y_its)
 
+    print("TR Loss: ", np.mean(tr_losses))
+    print("VL Loss: ", np.mean(val_losses))
     print("TS Loss: ", np.mean(ts_losses))
+
+    plot_learning_curve(model, x, y)

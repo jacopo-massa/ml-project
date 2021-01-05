@@ -28,34 +28,28 @@ def create_model(layers=3, n_units=30, init_mode='glorot_normal', activation='ta
     return model
 
 
-def model_selection(x, y, epochs=200, batch_size=32):
+def model_selection(x, y, epochs=200):
 
     # fix random seed for reproducibility
     seed = 27
     np.random.seed(seed)
 
     # create model
-    model = KerasRegressor(build_fn=create_model, epochs=epochs, batch_size=batch_size, verbose=0)
+    model = KerasRegressor(build_fn=create_model, epochs=epochs, verbose=0)
 
-    """# define the grid search parameters
-    eta = np.arange(start=0.0005, stop=0.0011, step=0.0002)
+    # define the grid search parameters
+    eta = np.arange(start=0.003, stop=0.01, step=0.001)
     eta = [float(round(i, 4)) for i in list(eta)]
 
-    alpha = np.arange(start=0.4, stop=1, step=0.2)
+    alpha = np.arange(start=0.4, stop=1, step=0.1)
     alpha = [float(round(i, 1)) for i in list(alpha)]
 
-    lmb = np.arange(start=0.0005, stop=0.001, step=0.0002)
+    lmb = np.arange(start=0.0005, stop=0.001, step=0.0001)
     lmb = [float(round(i, 4)) for i in list(lmb)]
 
-    batch_size = [16, 32, 64, 128]
-    neurons = [15, 20, 25, 30]"""
+    batch_size = [16, 32, 64]
 
-
-    eta = [0.1, 0.01]
-    alpha = [0.5, 0.6]
-    lmb = [0.0005]
-
-    param_grid = dict(eta=eta, alpha=alpha, lmb=lmb)
+    param_grid = dict(eta=eta, alpha=alpha, lmb=lmb, batch_size=batch_size)
 
     start_time = time.time()
     print("Starting Grid Search...")
@@ -67,7 +61,6 @@ def model_selection(x, y, epochs=200, batch_size=32):
 
     best_params = grid_result.best_params_
     best_params['epochs'] = epochs
-    best_params['batch_size'] = batch_size
 
     end_time = time.time() - start_time
     print(f"Ended Grid Search. ({end_time})")
@@ -156,7 +149,8 @@ def cross_validation(x, y, eta, alpha, lmb, n_splits=10, epochs=200, batch_size=
     return model_cv, list(np.mean(cv_loss, axis=0))
 
 
-if __name__ == '__main__':
+def keras_nn():
+    print("keras start")
     # read training set
     x, y, x_its, y_its = read_tr(its=True)
 
@@ -174,6 +168,7 @@ if __name__ == '__main__':
     print("VL Loss: ", val_losses[-1])
     print("TS Loss: ", np.mean(ts_losses))
 
+    print("keras end")
 
 
 

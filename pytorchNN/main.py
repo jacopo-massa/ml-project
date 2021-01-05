@@ -183,20 +183,22 @@ def log_ms_result(result):
     ms_result.append(result)
 
 
-def model_selection(x, y, epochs=200, batch_size=32):
+def model_selection(x, y):
 
     pool = mp.Pool(processes=mp.cpu_count())
 
-    # batch_size = [32, 64, 128]
-    # n_units = [20, 25, 30]
-    eta = np.arange(start=0.0001, stop=0.1, step=0.0002)
+    batch_size = [16, 32, 64]
+    # eta = np.arange(start=0.0001, stop=0.1, step=0.0002)
+    eta = [0.0005, 0.005, 0.05]
     alpha = np.arange(start=0.4, stop=1, step=0.2)
-    lmb = np.arange(start=0.0005, stop=0.001, step=0.0002)
+    lmb = np.arange(start=0.0005, stop=0.001, step=0.0001)
 
     for e in eta:
         for a in alpha:
             for l in lmb:
-                pool.apply_async(cross_validation, (x, y), dict(eta=e, alpha=a, lmb=l), callback=log_ms_result)
+                for b in batch_size:
+                    pool.apply_async(cross_validation, (x, y), dict(eta=e, alpha=a, lmb=l, batch_size=b),
+                                     callback=log_ms_result)
 
     pool.close()
     pool.join()
@@ -231,7 +233,8 @@ def predict(model, x_ts, x_its, y_its):
     return y_pred.detach().numpy(), iloss.item()
 
 
-if __name__ == '__main__':
+def pytorch_nn():
+    print("pytorch start")
     # read training set
     x, y, x_its, y_its = read_tr(its=True)
 
@@ -248,6 +251,8 @@ if __name__ == '__main__':
     print("TR Loss: ", tr_losses[-1])
     print("VL Loss: ", val_losses[-1])
     print("TS Loss: ", np.mean(ts_losses))
+
+    print("pytorch end")
 
 
 

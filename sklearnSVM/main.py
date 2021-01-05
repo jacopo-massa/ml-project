@@ -19,10 +19,9 @@ def model_selection(x, y):
     epsilon = [float(round(i, 4)) for i in list(epsilon)]
 
     param_grid = [{'estimator__kernel': ['rbf'],
-                   #'estimator__gamma': [1e-1, 1e-2, 1e-3, 1e-4, 'auto', 'scale'],
-                   'estimator__gamma': ['auto', 'scale'],
-                   'estimator__C': [1, 10],
-                   'estimator__epsilon': [0.1, 0.2]}]
+                   'estimator__gamma': [1e-1, 1e-2, 1e-3, 1e-4, 'auto', 'scale'],
+                   'estimator__C': [5, 10, 15, 25],
+                   'estimator__epsilon': epsilon}]
 
     grid = GridSearchCV(estimator=model, param_grid=param_grid, n_jobs=-1, cv=10,
                         return_train_score=True, scoring=scorer, verbose=2)
@@ -71,7 +70,8 @@ def plot_learning_curve(model, x, y):
     plt.show()
 
 
-if __name__ == '__main__':
+def sklearn_svm():
+    print("sklearn start")
     # read training set
     x, y, x_its, y_its = read_tr(its=True)
 
@@ -96,4 +96,6 @@ if __name__ == '__main__':
     print("VL Loss: ", np.mean(val_losses))
     print("TS Loss: ", np.mean(ts_losses))
 
-    plot_learning_curve(model, x, y)
+    print("sklearn end")
+
+    # plot_learning_curve(model, x, y)

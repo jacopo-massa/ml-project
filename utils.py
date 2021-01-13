@@ -1,16 +1,10 @@
 import os
 import numpy as np
+import matplotlib.pyplot as plt
 import tensorflow.keras.backend as K
 from numpy import loadtxt
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import make_scorer
-
-# PyTorch, TensorFlow.keras, SciKit
-# -> 1: API low lvl, same performance of TensorFlow
-# -> 2: API high lvl (easier, more concise)
-# -> 3: exploit Model Selection + using another SW tool
-
-# Un'altra rete per il MONK <- semplice, con Keras
 
 # tensorflow INFO, WARNING and ERROR are not printed
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
@@ -37,6 +31,21 @@ def read_ts():
     test = loadtxt(file, delimiter=',', usecols=range(1, 11), dtype=np.float64)
 
     return test
+
+
+def save_figure(model_name, **params):
+    name = ""
+    for k, v in params.items():
+        name += f"{k}{v}_"
+    name += ".png"
+
+    # create plot directory if it doesn't exist
+    dir_path = os.path.join(ROOT_DIR, model_name, "plot")
+    os.makedirs(dir_path, exist_ok=True)
+
+    # save plot as figure
+    fig_path = os.path.join(dir_path, name)
+    plt.savefig(fig_path, dpi=600)
 
 
 def rmse(y_true, y_pred):

@@ -1,6 +1,4 @@
 import matplotlib.pyplot as plt
-import numpy as np
-from numpy import loadtxt
 from tensorflow.keras.layers import Dense
 from tensorflow.keras.metrics import BinaryAccuracy
 from tensorflow.keras.models import Sequential
@@ -25,14 +23,6 @@ def scaled(data):
     return scaled_data
 
 
-def flattened(data):
-    flat = []
-    for d in data:
-        flat.append(np.ravel(d))
-
-    return np.array([np.array(f) for f in flat])
-
-
 def get_one_hot_encoded(monk_number):
 
     train_file = "./dataset/monks-{}.train".format(monk_number)
@@ -50,18 +40,10 @@ def get_one_hot_encoded(monk_number):
     x = scaled(train)
     x_test = scaled(test)
 
-    """# one-hot encode input
-    x = to_categorical(train[:, 1:7])
-    x_test = to_categorical(test[:, 1:7])
-
-    # flatten the input
-    x = flattened(x)
-    x_test = flattened(x_test)"""
-
     return x, y, x_test, y_test
 
 
-def monk_solver(monk_number, n_unit, eta, alpha, epochs, lmb=None, batch_size=None):
+def monk_solver(monk_number, n_unit, eta, alpha, epochs, lmb=None, batch_size=25):
 
     # get data
     x, y, x_test, y_test = get_one_hot_encoded(monk_number)
@@ -74,7 +56,7 @@ def monk_solver(monk_number, n_unit, eta, alpha, epochs, lmb=None, batch_size=No
         Dense(1, activation='sigmoid')
     ])
 
-    optimizer = SGD(learning_rate=eta, momentum=alpha, nesterov=False)
+    optimizer = SGD(learning_rate=eta, momentum=alpha)
     model.compile(optimizer=optimizer, loss='mean_squared_error', metrics=[BinaryAccuracy(name='accuracy')])
 
     res = model.fit(x, y, epochs=epochs, batch_size=batch_size, validation_data=(x_test, y_test), verbose=2)
@@ -93,20 +75,17 @@ def monk_solver(monk_number, n_unit, eta, alpha, epochs, lmb=None, batch_size=No
     plt.title(f'MONK {monk_number} (eta = {eta}, alpha = {alpha}, lambda = {lmb}) - Accuracy')
     plt.show()
 
-    # "don't specify batch_size if your data is in the form of datasets, generators,
-    # or keras' sequences (since they generate batches)."
-
-    # batch size sicuro <= 32, può spaziare da 1 (piccoli step poco costosi che portano
-    # anche in direzioni errate, ma in media verso un local minima) a 32 (32 alla volta).
-    # Semplicemente se hai 1000 batch samples e metti 500 a botta, in 2 iterazioni hai finito
-
-    # Riguardo le epoch,ogni epoca migliora il modello "fino a 'na certa". Arrivi ad un
-    # plateau e lo guardi tramite plot (x -> #epoche, y -> accuracy) [random value tipo 50]
-
 
 if __name__ == '__main__':
 
-    monk_solver(monk_number=1, n_unit=4, eta=0.25, alpha=0.85, epochs=90, batch_size=25)
-    #monk_solver(monk_number=2, n_unit=4, eta=0.25, alpha=0.85, epochs=150)
-    #monk_solver(monk_number=3, n_unit=4, eta=0.15, alpha=0.5, epochs=100)
-    #monk_solver(monk_number=3, n_unit=4, eta=0.1, alpha=0.45, epochs=170, lmb=0.001)
+    # alpha +- 0.8, eta +- 0.2
+    monk_solver(monk_number=1, n_unit=4, eta=0.22, alpha=0.82, epochs=70)
+
+    #alpha +- 0.75, eta +- 0.2
+    #monk_solver(monk_number=2, n_unit=4, eta=0.21, alpha=0.77, epochs=100)
+
+    #alpha +- 0.75, eta +- 0.2
+    #monk_solver(monk_number=3, n_unit=4, eta=0.2, alpha=0.76, epochs=120)
+
+    # eta 0.35 <-> 0.4, lmb=0.0001
+    # monk_solver(monk_number=3, n_unit=4, eta=0.35, alpha=0.45, epochs=120, lmb=0.0001)

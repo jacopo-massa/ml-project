@@ -4,8 +4,6 @@ from sklearnSVM import sklearn_svm
 
 if __name__ == '__main__':
 
-    keras_nn()
-    print("***************\n")
-    # pytorch_nn()
-    print("***************\n")
-    sklearn_svm()
+    keras_nn(ms=True)
+    pytorch_nn(ms=True)
+    sklearn_svm(ms=True)

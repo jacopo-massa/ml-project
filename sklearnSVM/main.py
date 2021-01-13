@@ -1,4 +1,3 @@
-import matplotlib.pyplot as plt
 from utils import *
 
 from sklearn.model_selection import GridSearchCV, learning_curve
@@ -35,14 +34,14 @@ def model_selection(x, y):
 
 def predict(model, x_ts, x_its, y_its):
 
-    iloss = K.eval(euclidean_distance_loss(y_its, model.predict(x_its)))
+    iloss = K.eval(rmse(y_its, model.predict(x_its)))
 
     y_pred = model.predict(x_ts)
 
     return y_pred, iloss
 
 
-def plot_learning_curve(model, x, y):
+def plot_learning_curve(model, x, y, savefig=False):
 
     # dictify model's parameters
     p = model.get_params()
@@ -50,7 +49,7 @@ def plot_learning_curve(model, x, y):
                   gamma=p['estimator__gamma'], eps=p['estimator__epsilon'])
 
     train_sizes, train_scores_svr, test_scores_svr = \
-        learning_curve(model, x, y, train_sizes=np.linspace(0.1, 1, 10),
+        learning_curve(model, x, y, train_sizes=np.linspace(0.1, 1, 50),
                        n_jobs=-1, scoring=scorer, cv=10, verbose=2)
 
     plt.plot(train_sizes, np.mean(np.abs(train_scores_svr), axis=1))
@@ -60,22 +59,23 @@ def plot_learning_curve(model, x, y):
     plt.legend(['Loss TR', 'Loss VL'])
     plt.title(f'SVR Learning curve \n {params}')
 
-    name = ""
-    for k, v in params.items():
-        name += f"{k}{v}_"
-    name += ".png"
+    if savefig:
+        save_figure("sklearnSVM", **params)
 
-    path = os.path.join(ROOT_DIR, "sklearnSVM", "plot", name)
-    plt.savefig(path, dpi=600)
     plt.show()
 
 
-def sklearn_svm():
+def sklearn_svm(ms=False):
     print("sklearn start")
     # read training set
     x, y, x_its, y_its = read_tr(its=True)
 
-    params = model_selection(x, y)
+    if ms:
+        params = model_selection(x, y)
+    else:
+        # params = dict(kernel='rbf', C=15, epsilon=0.8, gamma='scale')
+        params = dict(estimator__kernel='rbf', estimator__C=20,
+                      estimator__epsilon=0.5, estimator__gamma='scale')
 
     # create model with best params found by GridSearch
     svr = SVR(kernel=params['estimator__kernel'], C=params['estimator__C'],
@@ -98,4 +98,8 @@ def sklearn_svm():
 
     print("sklearn end")
 
-    # plot_learning_curve(model, x, y)
+    plot_learning_curve(model, x, y)
+
+
+if __name__ == '__main__':
+    sklearn_svm()

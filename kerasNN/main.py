@@ -1,5 +1,4 @@
 import time
-import matplotlib.pyplot as plt
 
 from tensorflow.keras.layers import Dense
 from tensorflow.keras.models import Sequential
@@ -76,11 +75,10 @@ def predict(model, x_ts, x_its, y_its):
     iloss = rmse(y_its, y_ipred)
 
     y_pred = model.predict(x_ts)
-
     return y_pred, K.eval(iloss)
 
 
-def plot_learning_curve(history, start_epoch=1, **kwargs):
+def plot_learning_curve(history, start_epoch=1, savefig=False, **kwargs):
 
     lgd = ['Loss TR']
     plt.plot(range(start_epoch, kwargs['epochs']), history['loss'][start_epoch:])
@@ -90,13 +88,9 @@ def plot_learning_curve(history, start_epoch=1, **kwargs):
     plt.legend(lgd)
     plt.title(f'Keras Learning Curve \n {kwargs}')
 
-    name = ""
-    for k, v in kwargs.items():
-        name += f"{k}{v}_"
-    name += ".png"
+    if savefig:
+        save_figure("kerasNN", **kwargs)
 
-    path = os.path.join(ROOT_DIR, "kerasNN", "plot", name)
-    plt.savefig(path, dpi=600)
     plt.show()
 
 
@@ -149,12 +143,16 @@ def cross_validation(x, y, eta, alpha, lmb, n_splits=10, epochs=200, batch_size=
     return model_cv, list(np.mean(cv_loss, axis=0))
 
 
-def keras_nn():
+def keras_nn(ms=False):
     print("keras start")
     # read training set
     x, y, x_its, y_its = read_tr(its=True)
 
-    params = model_selection(x, y)
+    if ms:
+        params = model_selection(x, y)
+    else:
+        # params = dict(eta=0.005, alpha=0.5, lmb=0.0005, epochs=200, batch_size=32)
+        params = dict(eta=0.006, alpha=0.6, lmb=0.0007, epochs=200, batch_size=32)
 
     model = create_model(eta=params['eta'], alpha=params['alpha'], lmb=params['lmb'])
 
@@ -170,11 +168,8 @@ def keras_nn():
 
     print("keras end")
 
+    plot_learning_curve(res.history, **params)
 
 
-
-
-
-
-
-
+if __name__ == '__main__':
+    keras_nn()

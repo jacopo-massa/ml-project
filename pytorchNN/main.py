@@ -1,6 +1,5 @@
 import torch
 import torch.nn.functional as F
-import matplotlib.pyplot as plt
 import multiprocessing as mp
 
 from utils import *
@@ -37,7 +36,6 @@ class Net(Module):
         self.l_out = Linear(in_features=n_units, out_features=out_features)
 
     def forward(self, x):
-
         # input layer
         x = tanh(self.l_in(x))
 
@@ -56,15 +54,17 @@ def init_weights(m):
         xavier_uniform(m.weight)
 
 
+def rmse(yhat, y):
+    return torch.sqrt(torch.mean((yhat - y) ** 2))
+
+
 def mean_euclidean_error(y_real, y_pred):
     return torch.mean(F.pairwise_distance(y_real, y_pred, p=2))
 
 
 def make_train_step(model, loss_fn, optimizer):
-
     # Builds function that performs a step in the train loop
     def train_step(x, y):
-
         # Sets model to TRAIN mode
         model.train()
         # Makes predictions
@@ -83,17 +83,20 @@ def make_train_step(model, loss_fn, optimizer):
     return train_step
 
 
-def plot_learning_curve(losses, val_losses):
-    plt.plot(losses)
-    plt.plot(val_losses)
+def plot_learning_curve(losses, val_losses, start_epoch=1, savefig=False, **kwargs):
+    plt.plot(range(start_epoch, kwargs['epochs']), losses[start_epoch:])
+    plt.plot(range(start_epoch, kwargs['epochs']), val_losses[start_epoch:])
 
     plt.legend(['Loss TR', 'Loss VL'])
-    plt.title(f'PyTorch Learning Curve')
+    plt.title(f'PyTorch Learning Curve \n {kwargs}')
+
+    if savefig:
+        save_figure("pytorchNN", **kwargs)
+
     plt.show()
 
 
 def fit(x, y, model, optimizer, loss_fn=mean_euclidean_error, epochs=200, batch_size=32, val_data=None):
-
     # Creates the train_step function for our model, loss function and optimizer
     train_step = make_train_step(model, loss_fn, optimizer)
     losses = []
@@ -126,7 +129,6 @@ def fit(x, y, model, optimizer, loss_fn=mean_euclidean_error, epochs=200, batch_
     for epoch in range(epochs):
         epoch_losses = []
         for x_batch, y_batch in train_loader:
-
             # ...Performs one train step and returns the corresponding loss
             loss = train_step(x_batch, y_batch)
             epoch_losses.append(loss)
@@ -137,7 +139,6 @@ def fit(x, y, model, optimizer, loss_fn=mean_euclidean_error, epochs=200, batch_
         # Perform validation
         with torch.no_grad():
             for x_val, y_val in val_loader:
-
                 # Sets model to VALIDATION mode
                 model.eval()
 
@@ -157,7 +158,6 @@ def log_cv_result(result):
 
 
 def cross_validation(x, y, n_splits=2, epochs=200, batch_size=32, alpha=0.9, eta=0.001, lmb=0.0005):
-
     kfold = KFold(n_splits=n_splits, random_state=None, shuffle=False)
     cv_loss = []
     fold_idx = 1
@@ -167,7 +167,7 @@ def cross_validation(x, y, n_splits=2, epochs=200, batch_size=32, alpha=0.9, eta
         model = Net()
         optimizer = SGD(model.parameters(), lr=eta, momentum=alpha, weight_decay=lmb)
 
-        loss_tr, loss_vl = fit(x[tr_idx], y[tr_idx], model=model, optimizer=optimizer,    epochs=epochs,
+        loss_tr, loss_vl = fit(x[tr_idx], y[tr_idx], model=model, optimizer=optimizer, epochs=epochs,
                                batch_size=batch_size, val_data=(x[vl_idx], y[vl_idx]))
 
         cv_loss.append([loss_tr[-1], loss_vl[-1]])
@@ -184,7 +184,6 @@ def log_ms_result(result):
 
 
 def model_selection(x, y):
-
     pool = mp.Pool(processes=mp.cpu_count())
 
     batch_size = [16, 32, 64]
@@ -220,25 +219,28 @@ def model_selection(x, y):
 
 
 def predict(model, x_ts, x_its, y_its):
-
     x_ts = torch.from_numpy(x_ts).float()
     x_its = torch.from_numpy(x_its).float()
     y_its = torch.from_numpy(y_its).float()
 
     y_ipred = model(x_its)
-    iloss = mean_euclidean_error(y_its, y_ipred)
+    iloss = rmse(y_its, y_ipred)
 
     y_pred = model(x_ts)
 
     return y_pred.detach().numpy(), iloss.item()
 
 
-def pytorch_nn():
+def pytorch_nn(ms=False):
     print("pytorch start")
     # read training set
     x, y, x_its, y_its = read_tr(its=True)
 
-    params = model_selection(x, y)
+    if ms:
+        params = model_selection(x, y)
+    else:
+        # params = dict(eta=0.005, alpha=0.8, lmb=0.0006, epochs=200, batch_size=64)
+        params = dict(eta=0.005, alpha=0.7, lmb=0.0002, epochs=160, batch_size=64)
 
     model = Net()
     optimizer = SGD(model.parameters(), lr=params['eta'], momentum=params['alpha'], weight_decay=params['lmb'])
@@ -254,5 +256,8 @@ def pytorch_nn():
 
     print("pytorch end")
 
+    plot_learning_curve(tr_losses, val_losses, start_epoch=20, savefig=True, **params)
 
 
+if __name__ == '__main__':
+    pytorch_nn()

@@ -43,6 +43,19 @@ def get_one_hot_encoded(monk_number):
     return x, y, x_test, y_test
 
 
+def save_monk_fig(monk_number, eta, alpha, lmb, plt_type='loss'):
+
+    name = f"monk{monk_number}_{plt_type}_eta{eta}_alpha{alpha}_lmb{lmb if lmb else 0}.png"
+
+    # create plot directory if it doesn't exist
+    dir_path = os.path.join(ROOT_DIR, "monk", "plot")
+    os.makedirs(dir_path, exist_ok=True)
+
+    # save plot as figure
+    fig_path = os.path.join(dir_path, name)
+    plt.savefig(fig_path, dpi=600)
+
+
 def monk_solver(monk_number, n_unit, eta, alpha, epochs, lmb=None, batch_size=25):
 
     # get data
@@ -64,28 +77,34 @@ def monk_solver(monk_number, n_unit, eta, alpha, epochs, lmb=None, batch_size=25
     # plot results for training set
     plt.plot(res.history['loss'])
     plt.plot(res.history['val_loss'])
+    plt.xlabel("Epochs")
+    plt.ylabel("MSE")
     plt.legend(['Loss TR', 'Loss TS'], loc='center right')
     plt.title(f'MONK {monk_number} (eta = {eta}, alpha = {alpha}, lambda = {lmb}) - Loss')
+    save_monk_fig(monk_number, eta, alpha, lmb)
     plt.show()
 
     # plot results for "test" (validation) set
     plt.plot(res.history['accuracy'])
     plt.plot(res.history['val_accuracy'])
+    plt.xlabel("Epochs")
+    plt.ylabel("Accuracy (%)")
     plt.legend(['Accuracy TR', 'Accuracy TS'], loc='center right')
     plt.title(f'MONK {monk_number} (eta = {eta}, alpha = {alpha}, lambda = {lmb}) - Accuracy')
+    save_monk_fig(monk_number, eta, alpha, lmb, plt_type='acc')
     plt.show()
 
 
 if __name__ == '__main__':
 
     # alpha +- 0.8, eta +- 0.2
-    monk_solver(monk_number=1, n_unit=4, eta=0.22, alpha=0.82, epochs=70)
+    monk_solver(monk_number=1, n_unit=4, eta=0.22, alpha=0.85, epochs=70)
 
-    #alpha +- 0.75, eta +- 0.2
-    #monk_solver(monk_number=2, n_unit=4, eta=0.21, alpha=0.77, epochs=100)
+    # alpha +- 0.75, eta +- 0.2
+    monk_solver(monk_number=2, n_unit=4, eta=0.21, alpha=0.77, epochs=100)
 
-    #alpha +- 0.75, eta +- 0.2
-    #monk_solver(monk_number=3, n_unit=4, eta=0.2, alpha=0.76, epochs=120)
+    # alpha +- 0.75, eta +- 0.2
+    monk_solver(monk_number=3, n_unit=4, eta=0.2, alpha=0.76, epochs=120)
 
     # eta 0.35 <-> 0.4, lmb=0.0001
-    # monk_solver(monk_number=3, n_unit=4, eta=0.35, alpha=0.45, epochs=120, lmb=0.0001)
+    monk_solver(monk_number=3, n_unit=4, eta=0.36, alpha=0.5, lmb=0.0002, epochs=120)

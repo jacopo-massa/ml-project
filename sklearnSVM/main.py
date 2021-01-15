@@ -22,19 +22,33 @@ def model_selection(x, y):
                    'estimator__C': [5, 10, 15, 25],
                    'estimator__epsilon': epsilon}]
 
+    start_time = time.time()
+    print("Starting Grid Search...")
+
     grid = GridSearchCV(estimator=model, param_grid=param_grid, n_jobs=-1, cv=10,
-                        return_train_score=True, scoring=scorer, verbose=2)
+                        return_train_score=True, scoring=scorer, verbose=1)
 
     grid_result = grid.fit(x, y)
 
-    print(f"Best: {abs(grid.best_score_)} using {grid_result.best_params_}")
+    print("\nEnded Grid Search. ({:.4f})\n".format(time.time() - start_time))
+
+    means_train = abs(grid_result.cv_results_['mean_train_score'])
+    means_test = abs(grid_result.cv_results_['mean_test_score'])
+    times_train = grid_result.cv_results_['mean_fit_time']
+    times_test = grid_result.cv_results_['mean_score_time']
+    params = grid_result.cv_results_['params']
+
+    for m_ts, t_ts, m_tr, t_tr, p in sorted(zip(means_test, times_test, means_train, times_train, params)):
+        print("{} \t TR {:.4f} (in {:.4f}) \t TS {:.4f} (in {:.4f})".format(p, m_tr, t_tr, m_ts, t_ts))
+
+    print("\nBest: {:.4f} using {}\n".format(abs(grid.best_score_), grid_result.best_params_))
 
     return grid.best_params_
 
 
 def predict(model, x_ts, x_its, y_its):
 
-    iloss = K.eval(rmse(y_its, model.predict(x_its)))
+    iloss = K.eval(euclidean_distance_loss(y_its, model.predict(x_its)))
 
     y_pred = model.predict(x_ts)
 
@@ -50,7 +64,7 @@ def plot_learning_curve(model, x, y, savefig=False):
 
     train_sizes, train_scores_svr, test_scores_svr = \
         learning_curve(model, x, y, train_sizes=np.linspace(0.1, 1, 50),
-                       n_jobs=-1, scoring=scorer, cv=10, verbose=2)
+                       n_jobs=-1, scoring=scorer, cv=10, verbose=1)
 
     plt.plot(train_sizes, np.mean(np.abs(train_scores_svr), axis=1))
     plt.plot(train_sizes, np.mean(np.abs(test_scores_svr), axis=1))
@@ -96,7 +110,7 @@ def sklearn_svm(ms=False):
     print("VL Loss: ", np.mean(val_losses))
     print("TS Loss: ", np.mean(ts_losses))
 
-    print("sklearn end")
+    print("\nsklearn end")
 
     plot_learning_curve(model, x, y)
 

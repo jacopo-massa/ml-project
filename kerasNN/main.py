@@ -1,5 +1,3 @@
-import time
-
 from tensorflow.keras.layers import Dense
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.optimizers import SGD
@@ -51,20 +49,28 @@ def model_selection(x, y, epochs=200):
     param_grid = dict(eta=eta, alpha=alpha, lmb=lmb, batch_size=batch_size)
 
     start_time = time.time()
-    print("Starting Grid Search...")
+    print("Starting Grid Search...\n")
 
-    grid = GridSearchCV(estimator=model, param_grid=param_grid, n_jobs=-1, cv=3,
-                        return_train_score=True, scoring=scorer, verbose=2)
+    grid = GridSearchCV(estimator=model, param_grid=param_grid, n_jobs=-1, cv=10,
+                        return_train_score=True, scoring=scorer, verbose=1)
 
     grid_result = grid.fit(x, y)
 
+    print("\nEnded Grid Search. ({:.4f})\n".format(time.time() - start_time))
+
+    means_train = abs(grid_result.cv_results_['mean_train_score'])
+    means_test = abs(grid_result.cv_results_['mean_test_score'])
+    times_train = grid_result.cv_results_['mean_fit_time']
+    times_test = grid_result.cv_results_['mean_score_time']
+    params = grid_result.cv_results_['params']
+
+    for m_ts, t_ts, m_tr, t_tr, p in sorted(zip(means_test, times_test, means_train, times_train, params)):
+        print("{} \t TR {:.4f} (in {:.4f}) \t TS {:.4f} (in {:.4f})".format(p, m_tr, t_tr, m_ts, t_ts))
+
+    print("\nBest: {:.4f} using {}\n".format(abs(grid.best_score_), grid_result.best_params_))
+
     best_params = grid_result.best_params_
     best_params['epochs'] = epochs
-
-    end_time = time.time() - start_time
-    print(f"Ended Grid Search. ({end_time})")
-
-    print(f"Best: {abs(grid.best_score_)} using {grid_result.best_params_}")
 
     return best_params
 
@@ -72,7 +78,7 @@ def model_selection(x, y, epochs=200):
 def predict(model, x_ts, x_its, y_its):
 
     y_ipred = model.predict(x_its)
-    iloss = rmse(y_its, y_ipred)
+    iloss = euclidean_distance_loss(y_its, y_ipred)
 
     y_pred = model.predict(x_ts)
     return y_pred, K.eval(iloss)
@@ -156,7 +162,7 @@ def keras_nn(ms=False):
 
     model = create_model(eta=params['eta'], alpha=params['alpha'], lmb=params['lmb'])
 
-    res = model.fit(x, y, validation_split=0.3, epochs=params['epochs'], batch_size=params['batch_size'], verbose=2)
+    res = model.fit(x, y, validation_split=0.3, epochs=params['epochs'], batch_size=params['batch_size'], verbose=1)
     tr_losses = res.history['loss']
     val_losses = res.history['val_loss']
 
@@ -172,4 +178,4 @@ def keras_nn(ms=False):
 
 
 if __name__ == '__main__':
-    keras_nn()
+    keras_nn(ms=True)

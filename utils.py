@@ -1,4 +1,5 @@
 import os
+import time
 import numpy as np
 import matplotlib.pyplot as plt
 import tensorflow.keras.backend as K
@@ -20,7 +21,7 @@ def read_tr(its=False):
     y = train[:, -2:]
 
     if its:
-        x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.1, random_state=42)
+        x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.15, random_state=42)
         return x_train, y_train, x_test, y_test
     else:
         return x, y
@@ -61,3 +62,9 @@ def euclidean_distance_score(y_true, y_pred):
 
 
 scorer = make_scorer(euclidean_distance_score, greater_is_better=False)
+
+if __name__ == '__main__':
+    x, y, x1, y1 = read_tr(its=True)
+
+    print(len(x))
+    print(len(x1))

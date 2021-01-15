@@ -6,13 +6,12 @@ from utils import *
 from torch import FloatTensor, tanh
 from torch.optim import SGD
 from torch.nn import Module, Linear, Parameter
-from torch.nn.init import xavier_uniform
+from torch.nn.init import xavier_normal_
 from torch.utils.data import DataLoader, TensorDataset
 from torch.utils.data.dataset import random_split
 from sklearn.model_selection import KFold
 
 ms_result = []
-cv_result = []
 
 
 class Net(Module):
@@ -51,7 +50,7 @@ class Net(Module):
 
 def init_weights(m):
     if type(m) == Linear:
-        xavier_uniform(m.weight)
+        xavier_normal_(m.weight)
 
 
 def rmse(yhat, y):
@@ -63,8 +62,10 @@ def mean_euclidean_error(y_real, y_pred):
 
 
 def make_train_step(model, loss_fn, optimizer):
+
     # Builds function that performs a step in the train loop
     def train_step(x, y):
+
         # Sets model to TRAIN mode
         model.train()
         # Makes predictions
@@ -152,30 +153,30 @@ def fit(x, y, model, optimizer, loss_fn=mean_euclidean_error, epochs=200, batch_
     return losses, val_losses
 
 
-def log_cv_result(result):
-    loss_tr, loss_vl = result
-    cv_result.append([loss_tr[-1], loss_vl[-1]])
-
-
-def cross_validation(x, y, n_splits=2, epochs=200, batch_size=32, alpha=0.9, eta=0.001, lmb=0.0005):
+def cross_validation(x, y, n_splits=10, epochs=200, batch_size=32, alpha=0.9, eta=0.001, lmb=0.0005):
     kfold = KFold(n_splits=n_splits, random_state=None, shuffle=False)
     cv_loss = []
+    fit_times = []
     fold_idx = 1
     for tr_idx, vl_idx in kfold.split(x, y):
-        print(f"Starting fold {fold_idx}")
 
         model = Net()
+        model.apply(init_weights)
         optimizer = SGD(model.parameters(), lr=eta, momentum=alpha, weight_decay=lmb)
 
+        fit_time = time.time()
         loss_tr, loss_vl = fit(x[tr_idx], y[tr_idx], model=model, optimizer=optimizer, epochs=epochs,
                                batch_size=batch_size, val_data=(x[vl_idx], y[vl_idx]))
 
+        fit_time = time.time() - fit_time
+        fit_times.append(fit_time)
+
         cv_loss.append([loss_tr[-1], loss_vl[-1]])
-        print(f"Ended fold {fold_idx}, with {loss_tr[-1]} - {loss_vl[-1]}")
         fold_idx += 1
 
     params = dict(eta=eta, alpha=alpha, lmb=lmb, epochs=epochs, batch_size=batch_size)
-    return params, cv_loss
+    mean_fit_time = np.mean(fit_times)
+    return params, cv_loss, mean_fit_time
 
 
 def log_ms_result(result):
@@ -192,6 +193,11 @@ def model_selection(x, y):
     alpha = np.arange(start=0.4, stop=1, step=0.2)
     lmb = np.arange(start=0.0005, stop=0.001, step=0.0001)
 
+    gs_size = len(batch_size) * len(eta) * len(alpha) * len(lmb)
+
+    ms_time = time.time()
+    print(f"Starting Grid Search, for a total of {gs_size} fits.")
+
     for e in eta:
         for a in alpha:
             for l in lmb:
@@ -202,19 +208,18 @@ def model_selection(x, y):
     pool.close()
     pool.join()
 
-    # min_vl_loss = np.amin([np.mean(r, axis=0) for _, (_, r) in enumerate(ms_result)], axis=0)[1]
+    print("\nEnded Grid Search. ({:.4f})\n".format(time.time() - ms_time))
 
-    min_loss = None
-    min_idx = 0
-    for idx, (d, r) in enumerate(ms_result):
-        mean = (np.mean(r, axis=0))[1]
-        if min_loss is None or min_loss > mean:
-            min_loss = mean
-            min_idx = idx
+    # print model selection results
+    sorted_res = sorted(ms_result, key=lambda tup: (np.mean(tup[1], axis=0))[1])
+    for (p, l, t) in sorted_res:
+        scores = np.mean(l, axis=0)
+        print("{} \t TR {:.4f} \t TS {:.4f} (Fit Time: {:.4f})".format(p, scores[0], scores[1], t))
 
-    best_params = ms_result[min_idx][0]
+    min_loss = (np.mean(sorted_res[0][1], axis=0))[1]
+    best_params = sorted_res[0][0]
 
-    print(f"Best score {min_loss} with {best_params}")
+    print("\nBest score {:.4f} with {}\n".format(min_loss, best_params))
     return best_params
 
 
@@ -224,7 +229,7 @@ def predict(model, x_ts, x_its, y_its):
     y_its = torch.from_numpy(y_its).float()
 
     y_ipred = model(x_its)
-    iloss = rmse(y_its, y_ipred)
+    iloss = mean_euclidean_error(y_its, y_ipred)
 
     y_pred = model(x_ts)
 
@@ -232,7 +237,7 @@ def predict(model, x_ts, x_its, y_its):
 
 
 def pytorch_nn(ms=False):
-    print("pytorch start")
+    print("pytorch start\n")
     # read training set
     x, y, x_its, y_its = read_tr(its=True)
 
@@ -243,6 +248,7 @@ def pytorch_nn(ms=False):
         params = dict(eta=0.005, alpha=0.7, lmb=0.0002, epochs=160, batch_size=64)
 
     model = Net()
+    model.apply(init_weights)
     optimizer = SGD(model.parameters(), lr=params['eta'], momentum=params['alpha'], weight_decay=params['lmb'])
 
     tr_losses, val_losses = fit(x, y, model=model, optimizer=optimizer,
@@ -254,10 +260,10 @@ def pytorch_nn(ms=False):
     print("VL Loss: ", val_losses[-1])
     print("TS Loss: ", np.mean(ts_losses))
 
-    print("pytorch end")
+    print("\npytorch end")
 
     plot_learning_curve(tr_losses, val_losses, start_epoch=20, savefig=True, **params)
 
 
 if __name__ == '__main__':
-    pytorch_nn()
+    pytorch_nn(ms=True)

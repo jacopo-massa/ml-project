@@ -88,6 +88,8 @@ def plot_learning_curve(losses, val_losses, start_epoch=1, savefig=False, **kwar
     plt.plot(range(start_epoch, kwargs['epochs']), losses[start_epoch:])
     plt.plot(range(start_epoch, kwargs['epochs']), val_losses[start_epoch:])
 
+    plt.xlabel("Epoch")
+    plt.ylabel("Loss")
     plt.legend(['Loss TR', 'Loss VL'])
     plt.title(f'PyTorch Learning Curve \n {kwargs}')
 
@@ -180,18 +182,25 @@ def cross_validation(x, y, n_splits=10, epochs=200, batch_size=32, alpha=0.9, et
 
 
 def log_ms_result(result):
-    # cv_res, params = result
     ms_result.append(result)
 
 
 def model_selection(x, y):
     pool = mp.Pool(processes=mp.cpu_count())
 
-    batch_size = [16, 32, 64]
-    # eta = np.arange(start=0.0001, stop=0.1, step=0.0002)
-    eta = [0.0005, 0.005, 0.05]
+    # define the grid search parameters
+    # eta = np.arange(start=0.003, stop=0.01, step=0.001)
+    # eta = [float(round(i, 4)) for i in list(eta)]
+    eta = [0.5, 0.05, 0.005, 0.0005]
+
     alpha = np.arange(start=0.4, stop=1, step=0.2)
-    lmb = np.arange(start=0.0005, stop=0.001, step=0.0001)
+    alpha = [float(round(i, 1)) for i in list(alpha)]
+
+    # lmb = np.arange(start=0.0005, stop=0.001, step=0.0002)
+    # lmb = [float(round(i, 4)) for i in list(lmb)]
+    lmb = [0.05, 0.005, 0.0005]
+
+    batch_size = [16, 32, 64]
 
     gs_size = len(batch_size) * len(eta) * len(alpha) * len(lmb)
 
@@ -244,8 +253,7 @@ def pytorch_nn(ms=False):
     if ms:
         params = model_selection(x, y)
     else:
-        # params = dict(eta=0.005, alpha=0.8, lmb=0.0006, epochs=200, batch_size=64)
-        params = dict(eta=0.005, alpha=0.7, lmb=0.0002, epochs=160, batch_size=64)
+        params = dict(eta=0.003, alpha=0.85, lmb=0.0002, epochs=80, batch_size=64)
 
     model = Net()
     model.apply(init_weights)
@@ -262,8 +270,8 @@ def pytorch_nn(ms=False):
 
     print("\npytorch end")
 
-    plot_learning_curve(tr_losses, val_losses, start_epoch=20, savefig=True, **params)
+    plot_learning_curve(tr_losses, val_losses, start_epoch=5, savefig=True, **params)
 
 
 if __name__ == '__main__':
-    pytorch_nn(ms=True)
+    pytorch_nn()

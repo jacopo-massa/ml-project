@@ -69,7 +69,7 @@ def plot_learning_curve(model, x, y, savefig=False):
     plt.plot(train_sizes, np.mean(np.abs(train_scores_svr), axis=1))
     plt.plot(train_sizes, np.mean(np.abs(test_scores_svr), axis=1))
     plt.xlabel("Train size")
-    plt.ylabel("Mean Euclidean Error (MEE)")
+    plt.ylabel("Loss")
     plt.legend(['Loss TR', 'Loss VL'])
     plt.title(f'SVR Learning curve \n {params}')
 
@@ -87,9 +87,7 @@ def sklearn_svm(ms=False):
     if ms:
         params = model_selection(x, y)
     else:
-        # params = dict(kernel='rbf', C=15, epsilon=0.8, gamma='scale')
-        params = dict(estimator__kernel='rbf', estimator__C=20,
-                      estimator__epsilon=0.5, estimator__gamma='scale')
+        params = dict(estimator__kernel='rbf', estimator__C=8, estimator__epsilon=0.6, estimator__gamma='scale')
 
     # create model with best params found by GridSearch
     svr = SVR(kernel=params['estimator__kernel'], C=params['estimator__C'],

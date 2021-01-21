@@ -10,7 +10,9 @@ from sklearn.metrics import make_scorer
 # tensorflow INFO, WARNING and ERROR are not printed
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
+TEAM_NAME = "MARIO"
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
+BLIND_TEST_FILENAME = f"{TEAM_NAME}_ML-CUP20-TS.csv"
 
 
 def read_tr(its=False):
@@ -49,6 +51,25 @@ def save_figure(model_name, **params):
     plt.savefig(fig_path, dpi=600)
 
 
+def write_blind_results(y_pred):
+    print(y_pred)
+    assert len(y_pred) == 472, "Not enough data were predicted! 472 predictions expected!"
+
+    file = os.path.join(ROOT_DIR, BLIND_TEST_FILENAME)
+    with open(file, "w") as f:
+        print("# Jacopo Massa, Giulio Purgatorio", file=f)
+        print("# MARIO", file=f)
+        print("# ML-CUP20 v1", file=f)
+        print("# 24/01/2021", file=f)
+
+        pred_id = 1
+        for p in y_pred:
+            print("{},{},{}".format(pred_id, p[0], p[1]), file=f)
+            pred_id += 1
+
+    f.close()
+
+
 def rmse(y_true, y_pred):
     return K.sqrt(K.mean(K.square(y_pred - y_true), axis=-1))
 
@@ -62,9 +83,3 @@ def euclidean_distance_score(y_true, y_pred):
 
 
 scorer = make_scorer(euclidean_distance_score, greater_is_better=False)
-
-if __name__ == '__main__':
-    x, y, x1, y1 = read_tr(its=True)
-
-    print(len(x))
-    print(len(x1))

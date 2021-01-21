@@ -8,7 +8,7 @@ from sklearn.model_selection import GridSearchCV, KFold
 from utils import *
 
 
-def create_model(layers=3, n_units=30, init_mode='glorot_normal', activation='tanh', lmb=0.0005, eta=0.001, alpha=0.7):
+def create_model(layers=4, n_units=30, init_mode='glorot_normal', activation='tanh', lmb=0.0005, eta=0.001, alpha=0.7):
     model = Sequential()
 
     for i in range(layers):
@@ -91,8 +91,11 @@ def plot_learning_curve(history, start_epoch=1, savefig=False, **kwargs):
     if "val_loss" in history:
         plt.plot(range(start_epoch, kwargs['epochs']), history['val_loss'][start_epoch:])
         lgd.append('Loss VL')
-    plt.legend(lgd)
+
+    plt.xlabel("Epoch")
+    plt.ylabel("Loss")
     plt.title(f'Keras Learning Curve \n {kwargs}')
+    plt.legend(lgd)
 
     if savefig:
         save_figure("kerasNN", **kwargs)
@@ -157,8 +160,7 @@ def keras_nn(ms=False):
     if ms:
         params = model_selection(x, y)
     else:
-        # params = dict(eta=0.005, alpha=0.5, lmb=0.0005, epochs=200, batch_size=32)
-        params = dict(eta=0.006, alpha=0.6, lmb=0.0007, epochs=200, batch_size=32)
+        params = dict(eta=0.002, alpha=0.7, lmb=0.0001, epochs=200, batch_size=64)
 
     model = create_model(eta=params['eta'], alpha=params['alpha'], lmb=params['lmb'])
 
@@ -174,8 +176,8 @@ def keras_nn(ms=False):
 
     print("keras end")
 
-    plot_learning_curve(res.history, **params)
+    plot_learning_curve(res.history, savefig=True, **params)
 
 
 if __name__ == '__main__':
-    keras_nn(ms=True)
+    keras_nn()

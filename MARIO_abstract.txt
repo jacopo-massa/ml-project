@@ -1,0 +1,2 @@
+The selected model for the CUP is a Multi-Layer Perceptron made on PyTorch because it retrieved the best results, after evaluation phase.
+We made model selection and assessment by applying grid search and Cross-Validation before testing the final model on our internal test set.

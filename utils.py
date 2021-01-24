@@ -7,7 +7,7 @@ from numpy import loadtxt
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import make_scorer
 
-# tensorflow INFO, WARNING and ERROR are not printed
+# TensorFlow INFO, WARNING and ERROR are not printed
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 TEAM_NAME = "MARIO"
@@ -15,6 +15,8 @@ ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 BLIND_TEST_FILENAME = f"{TEAM_NAME}_ML-CUP20-TS.csv"
 
 
+# read development set
+# if its is True, it splits the provided dataset into development and internal test set
 def read_tr(its=False):
     file = os.path.join(ROOT_DIR, "ml_cup_data", "ML-CUP20-TR.csv")
     train = loadtxt(file, delimiter=',', usecols=range(1, 13), dtype=np.float64)
@@ -29,6 +31,7 @@ def read_tr(its=False):
         return x, y
 
 
+# read provided blind test set
 def read_ts():
     file = os.path.join(ROOT_DIR, "ml_cup_data", "ML-CUP20-TS.csv")
     test = loadtxt(file, delimiter=',', usecols=range(1, 11), dtype=np.float64)
@@ -51,16 +54,17 @@ def save_figure(model_name, **params):
     plt.savefig(fig_path, dpi=600)
 
 
+# save predicted results on a csv file
 def write_blind_results(y_pred):
-    print(y_pred)
+
     assert len(y_pred) == 472, "Not enough data were predicted! 472 predictions expected!"
 
     file = os.path.join(ROOT_DIR, BLIND_TEST_FILENAME)
     with open(file, "w") as f:
-        print("# Jacopo Massa, Giulio Purgatorio", file=f)
+        print("# Jacopo Massa \t Giulio Purgatorio", file=f)
         print("# MARIO", file=f)
-        print("# ML-CUP20 v1", file=f)
-        print("# 24/01/2021", file=f)
+        print("# ML-CUP20", file=f)
+        print("# 25/01/2021", file=f)
 
         pred_id = 1
         for p in y_pred:
@@ -70,14 +74,12 @@ def write_blind_results(y_pred):
     f.close()
 
 
-def rmse(y_true, y_pred):
-    return K.sqrt(K.mean(K.square(y_pred - y_true), axis=-1))
-
-
+# loss function for Keras and SVM models
 def euclidean_distance_loss(y_true, y_pred):
     return K.sqrt(K.sum(K.square(y_pred - y_true), axis=-1))
 
 
+# it retrieves the mean value of all the passed losses
 def euclidean_distance_score(y_true, y_pred):
     return np.mean(euclidean_distance_loss(y_true, y_pred))
 

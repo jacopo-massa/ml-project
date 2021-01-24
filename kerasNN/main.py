@@ -8,9 +8,10 @@ from sklearn.model_selection import GridSearchCV, KFold
 from utils import *
 
 
-def create_model(layers=4, n_units=30, init_mode='glorot_normal', activation='tanh', lmb=0.0005, eta=0.001, alpha=0.7):
+def create_model(layers=3, n_units=30, init_mode='glorot_normal', activation='tanh', lmb=0.0001, eta=0.002, alpha=0.7):
     model = Sequential()
 
+    # add hidden layers
     for i in range(layers):
         model.add(Dense(n_units, kernel_initializer=init_mode, activation=activation, kernel_regularizer=l2(lmb)))
 
@@ -77,10 +78,15 @@ def model_selection(x, y, epochs=200):
 
 def predict(model, x_ts, x_its, y_its):
 
+    # predict on internal test set
     y_ipred = model.predict(x_its)
     iloss = euclidean_distance_loss(y_its, y_ipred)
 
+    # predict on blind test set
     y_pred = model.predict(x_ts)
+
+    # return predicted target on blind test set,
+    # and losses on internal test set
     return y_pred, K.eval(iloss)
 
 
@@ -103,68 +109,22 @@ def plot_learning_curve(history, start_epoch=1, savefig=False, **kwargs):
     plt.show()
 
 
-def cross_validation(x, y, eta, alpha, lmb, n_splits=10, epochs=200, batch_size=64):
-
-    kfold = KFold(n_splits=n_splits, random_state=None, shuffle=False)
-    model_cv = create_model(eta=eta, alpha=alpha, lmb=lmb)
-
-    cv_loss = []
-    lgd = []
-    fold_idx = 0
-    for tr_idx, vl_idx in kfold.split(x, y):
-        print(f"Starting fold {fold_idx}")
-        res_cv = model_cv.fit(x[tr_idx], y[tr_idx], epochs=epochs, batch_size=batch_size,
-                              validation_data=(x[vl_idx], y[vl_idx]), verbose=0)
-
-        loss_tr = res_cv.history['loss']
-        loss_vl = res_cv.history['val_loss']
-        cv_loss.append([loss_tr[-1], loss_vl[-1]])
-
-        plt.plot(loss_tr)
-        plt.plot(loss_vl)
-
-        lgd.append(f'Loss TR {fold_idx}')
-        lgd.append(f'Loss VL {fold_idx}')
-        fold_idx += 1
-
-        print(f"Ended fold {fold_idx}, with {loss_tr[-1]} - {loss_vl[-1]}")
-
-    # plot and save cv results
-    param = dict(eta=eta, alpha=alpha, lmb=lmb, epochs=epochs, batch_size=batch_size)
-
-    plt.legend(lgd)
-    plt.title(f"Keras Cross Validation \n {param}")
-
-    name = "cv_"
-    for k, v in param.items():
-        name += f"{k}{v}_"
-    name += ".png"
-
-    path = os.path.join(ROOT_DIR, "kerasNN", "plot", name)
-    plt.savefig(path, dpi=600)
-    plt.show()
-
-    # retrain model on the entire TR
-    res_final = model_cv.fit(x, y, epochs=epochs, batch_size=batch_size, verbose=0)
-    plot_learning_curve(res_final.history, **param)
-
-    # mean of loss on TR and VL
-    return model_cv, list(np.mean(cv_loss, axis=0))
-
-
 def keras_nn(ms=False):
     print("keras start")
+
     # read training set
     x, y, x_its, y_its = read_tr(its=True)
 
+    # choose model selection or hand-given parameters
     if ms:
         params = model_selection(x, y)
     else:
         params = dict(eta=0.002, alpha=0.7, lmb=0.0001, epochs=200, batch_size=64)
 
+    # create and fit the model
     model = create_model(eta=params['eta'], alpha=params['alpha'], lmb=params['lmb'])
-
     res = model.fit(x, y, validation_split=0.3, epochs=params['epochs'], batch_size=params['batch_size'], verbose=1)
+
     tr_losses = res.history['loss']
     val_losses = res.history['val_loss']
 

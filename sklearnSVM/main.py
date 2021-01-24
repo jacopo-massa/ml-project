@@ -13,7 +13,7 @@ def model_selection(x, y):
     svr = SVR()
     model = MultiOutputRegressor(svr)
 
-    # Set the parameters by cross-validation
+    # define the grid search parameters
     epsilon = np.arange(start=0.1, stop=0.9, step=0.1)
     epsilon = [float(round(i, 4)) for i in list(epsilon)]
 
@@ -47,11 +47,12 @@ def model_selection(x, y):
 
 
 def predict(model, x_ts, x_its, y_its):
-
+    # predict on internal test set
     iloss = K.eval(euclidean_distance_loss(y_its, model.predict(x_its)))
-
+    # predict on blind test set
     y_pred = model.predict(x_ts)
-
+    # return predicted target on blind test set,
+    # and losses on internal test set
     return y_pred, iloss
 
 
@@ -62,6 +63,7 @@ def plot_learning_curve(model, x, y, savefig=False):
     params = dict(kernel=p['estimator__kernel'], C=p['estimator__C'],
                   gamma=p['estimator__gamma'], eps=p['estimator__epsilon'])
 
+    # plot learning curve by training and scoring the model for different train sizes
     train_sizes, train_scores_svr, test_scores_svr = \
         learning_curve(model, x, y, train_sizes=np.linspace(0.1, 1, 50),
                        n_jobs=-1, scoring=scorer, cv=10, verbose=1)
@@ -81,21 +83,24 @@ def plot_learning_curve(model, x, y, savefig=False):
 
 def sklearn_svm(ms=False):
     print("sklearn start")
+
     # read training set
     x, y, x_its, y_its = read_tr(its=True)
 
+    # choose model selection or hand-given parameters
     if ms:
         params = model_selection(x, y)
     else:
         params = dict(estimator__kernel='rbf', estimator__C=8, estimator__epsilon=0.6, estimator__gamma='scale')
 
-    # create model with best params found by GridSearch
+    # create model and fit the model
     svr = SVR(kernel=params['estimator__kernel'], C=params['estimator__C'],
               gamma=params['estimator__gamma'], epsilon=params['estimator__epsilon'])
 
+    # we use MOR to perform the multi-output regression task
     model = MultiOutputRegressor(svr)
 
-    # fit model on the entire TR
+    # split development set into train and test set
     x_tr, x_vl, y_tr, y_vl = train_test_split(x, y, test_size=0.3)
     model.fit(x_tr, y_tr)
 

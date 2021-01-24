@@ -1,4 +1,3 @@
-import matplotlib.pyplot as plt
 from tensorflow.keras.layers import Dense
 from tensorflow.keras.metrics import BinaryAccuracy
 from tensorflow.keras.models import Sequential
@@ -8,16 +7,20 @@ from tensorflow.keras.utils import to_categorical
 from utils import *
 
 
+# input encoding for monk's problems
 def scaled(data):
 
     scaled_data = []
     for i in range(1, 7):
         col = data[:, i]
 
+        # interpolate each column, from 0 to the number of unique items in that column...
         data[:, i] = np.interp(col, (col.min(), col.max()), (0, len(np.unique(col)) - 1))
 
+        # ... so that we have the minimum number of bits when we 1-hot-encode data
         col_cat = to_categorical(data[:, i])
 
+        # create numpy matrix
         scaled_data = np.concatenate((scaled_data, col_cat), axis=1) if i != 1 else col_cat
 
     return scaled_data
@@ -63,13 +66,12 @@ def monk_solver(monk_number, eta, alpha, epochs, lmb=None, batch_size=25, n_unit
 
     # create the model
     regularizer = l2(lmb) if lmb else None
-
+    optimizer = SGD(learning_rate=eta, momentum=alpha)
     model = Sequential([
         Dense(n_unit, activation='tanh', kernel_regularizer=regularizer, input_dim=17),
         Dense(1, activation='sigmoid')
     ])
 
-    optimizer = SGD(learning_rate=eta, momentum=alpha)
     model.compile(optimizer=optimizer, loss='mean_squared_error', metrics=[BinaryAccuracy(name='accuracy')])
 
     res = model.fit(x, y, epochs=epochs, batch_size=batch_size, validation_data=(x_test, y_test), verbose=2)
@@ -80,7 +82,7 @@ def monk_solver(monk_number, eta, alpha, epochs, lmb=None, batch_size=25, n_unit
     plt.xlabel("Epoch")
     plt.ylabel("MSE")
     plt.legend(['Loss TR', 'Loss TS'], loc='center right')
-    #plt.title(f'MONK {monk_number} (eta = {eta}, alpha = {alpha}, lambda = {lmb}) - Loss')
+    plt.title(f'MONK {monk_number} (eta = {eta}, alpha = {alpha}, lambda = {lmb}) - Loss')
     save_monk_fig(monk_number, eta, alpha, lmb)
     plt.show()
 
@@ -90,21 +92,14 @@ def monk_solver(monk_number, eta, alpha, epochs, lmb=None, batch_size=25, n_unit
     plt.xlabel("Epoch")
     plt.ylabel("Accuracy")
     plt.legend(['Accuracy TR', 'Accuracy TS'], loc='center right')
-    # plt.title(f'MONK {monk_number} (eta = {eta}, alpha = {alpha}, lambda = {lmb}) - Accuracy')
+    plt.title(f'MONK {monk_number} (eta = {eta}, alpha = {alpha}, lambda = {lmb}) - Accuracy')
     save_monk_fig(monk_number, eta, alpha, lmb, plt_type='acc')
     plt.show()
 
 
 if __name__ == '__main__':
 
-    # alpha +- 0.8, eta +- 0.2
-    # monk_solver(monk_number=1, eta=0.22, alpha=0.85, epochs=70)
-
-    # alpha +- 0.75, eta +- 0.2
-    # monk_solver(monk_number=2, eta=0.21, alpha=0.77, epochs=100)
-
-    # alpha +- 0.75, eta +- 0.2
-    # monk_solver(monk_number=3, eta=0.2, alpha=0.76, epochs=120)
-
-    # eta 0.35 <-> 0.4, lmb=0.0001
+    monk_solver(monk_number=1, eta=0.22, alpha=0.85, epochs=70)
+    monk_solver(monk_number=2, eta=0.21, alpha=0.77, epochs=100)
+    monk_solver(monk_number=3, eta=0.2, alpha=0.76, epochs=120)
     monk_solver(monk_number=3, eta=0.3, alpha=0.6, lmb=0.0001, epochs=200)

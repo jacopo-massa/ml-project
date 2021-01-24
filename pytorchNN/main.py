@@ -48,15 +48,13 @@ class Net(Module):
         return x
 
 
+# weights initialization function, as Glorot initialization (also called Xavier initialization)
 def init_weights(m):
     if type(m) == Linear:
         xavier_normal_(m.weight)
 
 
-def rmse(yhat, y):
-    return torch.sqrt(torch.mean((yhat - y) ** 2))
-
-
+# re-written loss function for PyTorch (with tensors)
 def mean_euclidean_error(y_real, y_pred):
     return torch.mean(F.pairwise_distance(y_real, y_pred, p=2))
 
@@ -66,21 +64,21 @@ def make_train_step(model, loss_fn, optimizer):
     # Builds function that performs a step in the train loop
     def train_step(x, y):
 
-        # Sets model to TRAIN mode
+        # set model to TRAIN mode
         model.train()
-        # Makes predictions
+        # make predictions
         y_hat = model(x)
-        # Computes loss
+        # compute loss
         loss = loss_fn(y, y_hat)
-        # Computes gradients
+        # compute gradients
         loss.backward()
-        # Updates parameters and zeroes gradients
+        # update parameter and zero gradients
         optimizer.step()
         optimizer.zero_grad()
-        # Returns the loss
+        # return the loss
         return loss.item()
 
-    # Returns the function that will be called inside the train loop
+    # return the function that will be called inside the train loop
     return train_step
 
 
@@ -99,17 +97,20 @@ def plot_learning_curve(losses, val_losses, start_epoch=1, savefig=False, **kwar
     plt.show()
 
 
-def fit(x, y, model, optimizer, loss_fn=mean_euclidean_error, epochs=200, batch_size=32, val_data=None):
-    # Creates the train_step function for our model, loss function and optimizer
+def fit(x, y, model, optimizer, loss_fn=mean_euclidean_error, epochs=200, batch_size=64, val_data=None):
+
+    # create the train_step function for our model, loss function and optimizer
     train_step = make_train_step(model, loss_fn, optimizer)
     losses = []
     val_losses = []
 
+    # change our data into tensors to work with PyTorch
     x_tensor = torch.from_numpy(x).float()
     y_tensor = torch.from_numpy(y).float()
 
     dataset = TensorDataset(x_tensor, y_tensor)
 
+    # if validation data are given, use them. Else split the given development set
     if val_data:
         x_val, y_val = val_data
         x_val_tensor = torch.from_numpy(x_val).float()
@@ -128,26 +129,25 @@ def fit(x, y, model, optimizer, loss_fn=mean_euclidean_error, epochs=200, batch_
     train_loader = DataLoader(dataset=train_data, batch_size=batch_size, shuffle=False)
     val_loader = DataLoader(dataset=val_data, batch_size=batch_size, shuffle=False)
 
-    # For each epoch...
+    # for each epoch...
     for epoch in range(epochs):
         epoch_losses = []
         for x_batch, y_batch in train_loader:
-            # ...Performs one train step and returns the corresponding loss
+            # ...perform one train step and return the corresponding loss
             loss = train_step(x_batch, y_batch)
             epoch_losses.append(loss)
 
         losses.append(np.mean(epoch_losses))
 
         epoch_val_losses = []
-        # Perform validation
+        # perform validation
         with torch.no_grad():
             for x_val, y_val in val_loader:
-                # Sets model to VALIDATION mode
+                # set model to VALIDATION mode
                 model.eval()
-
-                # Makes predictions
+                # makes predictions
                 y_hat = model(x_val)
-                # Computes loss
+                # computes loss
                 val_loss = loss_fn(y_val, y_hat)
                 epoch_val_losses.append(val_loss.item())
 
@@ -155,13 +155,16 @@ def fit(x, y, model, optimizer, loss_fn=mean_euclidean_error, epochs=200, batch_
     return losses, val_losses
 
 
-def cross_validation(x, y, n_splits=10, epochs=200, batch_size=32, alpha=0.9, eta=0.001, lmb=0.0005):
+def cross_validation(x, y, n_splits=10, epochs=200, batch_size=64, eta=0.003, alpha=0.85, lmb=0.0002):
     kfold = KFold(n_splits=n_splits, random_state=None, shuffle=False)
     cv_loss = []
     fit_times = []
     fold_idx = 1
+
+    # for each fold (whose number is defined by n_splits) ...
     for tr_idx, vl_idx in kfold.split(x, y):
 
+        # ... create and fit a different model ...
         model = Net()
         model.apply(init_weights)
         optimizer = SGD(model.parameters(), lr=eta, momentum=alpha, weight_decay=lmb)
@@ -173,32 +176,35 @@ def cross_validation(x, y, n_splits=10, epochs=200, batch_size=32, alpha=0.9, et
         fit_time = time.time() - fit_time
         fit_times.append(fit_time)
 
+        # ... and save results ...
         cv_loss.append([loss_tr[-1], loss_vl[-1]])
         fold_idx += 1
 
     params = dict(eta=eta, alpha=alpha, lmb=lmb, epochs=epochs, batch_size=batch_size)
+
+    # calculate average time to make the entire cross validation process
     mean_fit_time = np.mean(fit_times)
     return params, cv_loss, mean_fit_time
 
 
+# callback function for the multiprocessing task
 def log_ms_result(result):
     ms_result.append(result)
 
 
 def model_selection(x, y):
+    # define a pool of tasks, for multiprocessing
     pool = mp.Pool(processes=mp.cpu_count())
 
     # define the grid search parameters
-    # eta = np.arange(start=0.003, stop=0.01, step=0.001)
-    # eta = [float(round(i, 4)) for i in list(eta)]
-    eta = [0.5, 0.05, 0.005, 0.0005]
+    eta = np.arange(start=0.003, stop=0.01, step=0.001)
+    eta = [float(round(i, 4)) for i in list(eta)]
 
     alpha = np.arange(start=0.4, stop=1, step=0.2)
     alpha = [float(round(i, 1)) for i in list(alpha)]
 
-    # lmb = np.arange(start=0.0005, stop=0.001, step=0.0002)
-    # lmb = [float(round(i, 4)) for i in list(lmb)]
-    lmb = [0.05, 0.005, 0.0005]
+    lmb = np.arange(start=0.0005, stop=0.001, step=0.0002)
+    lmb = [float(round(i, 4)) for i in list(lmb)]
 
     batch_size = [16, 32, 64]
 
@@ -233,28 +239,36 @@ def model_selection(x, y):
 
 
 def predict(model, x_ts, x_its, y_its):
+    # change our data into tensors to work with PyTorch
     x_ts = torch.from_numpy(x_ts).float()
     x_its = torch.from_numpy(x_its).float()
     y_its = torch.from_numpy(y_its).float()
 
+    # predict on internal test set
     y_ipred = model(x_its)
     iloss = mean_euclidean_error(y_its, y_ipred)
 
+    # predict on blind test set
     y_pred = model(x_ts)
 
+    # return predicted target on blind test set,
+    # and losses on internal test set
     return y_pred.detach().numpy(), iloss.item()
 
 
 def pytorch_nn(ms=False):
     print("pytorch start\n")
+
     # read training set
     x, y, x_its, y_its = read_tr(its=True)
 
+    # choose model selection or hand-given parameters
     if ms:
         params = model_selection(x, y)
     else:
         params = dict(eta=0.003, alpha=0.85, lmb=0.0002, epochs=80, batch_size=64)
 
+    # create and fit the model
     model = Net()
     model.apply(init_weights)
     optimizer = SGD(model.parameters(), lr=params['eta'], momentum=params['alpha'], weight_decay=params['lmb'])
@@ -270,7 +284,10 @@ def pytorch_nn(ms=False):
 
     print("\npytorch end")
 
-    plot_learning_curve(tr_losses, val_losses, start_epoch=5, savefig=True, **params)
+    plot_learning_curve(tr_losses, val_losses, savefig=True, **params)
+
+    # generate csv file for MLCUP
+    write_blind_results(y_pred)
 
 
 if __name__ == '__main__':
